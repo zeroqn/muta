@@ -45,4 +45,6 @@ members = [
   "core/storage",
 
   "protocol",
+
+  "devtools/p2p_latency_measure"
 ]

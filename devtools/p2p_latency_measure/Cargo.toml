@@ -1,0 +1,24 @@
+[package]
+name = "p2p-latency-measure"
+version = "0.1.0"
+authors = ["zero.qn <zero.qn@outlook.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+core-network = { path = "../../core/network" }
+protocol = { path = "../../protocol" }
+
+rand = "0.7"
+lazy_static = "1.4"
+serde = "1.0"
+serde_derive = "1.0"
+async-trait = "0.1"
+parking_lot = "0.9"
+derive_more = "0.15"
+runtime = "0.3.0-alpha.7"
+runtime-tokio = "0.3.0-alpha.6"
+tentacle-secio = "0.1"
+log = "0.4.8"
+env_logger = "0.6.2"
