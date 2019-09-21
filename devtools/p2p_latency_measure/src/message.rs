@@ -1,3 +1,5 @@
+use std::net::IpAddr;
+
 use derive_more::Display;
 use lazy_static::lazy_static;
 use protocol::types::Hash;
@@ -12,12 +14,18 @@ lazy_static! {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash, Display)]
-#[display(fmt = "identity: {}", _0)]
-pub struct Identity(String);
+#[display(fmt = "identity: ip addr {}, hash {}", ip_addr, hash)]
+pub struct Identity {
+    ip_addr: IpAddr,
+    hash:    String,
+}
 
 impl Identity {
-    pub fn me() -> Self {
-        Identity(IDENTITY.to_owned())
+    pub fn new(ip_addr: IpAddr) -> Self {
+        Identity {
+            ip_addr,
+            hash: IDENTITY.to_owned(),
+        }
     }
 }
 
@@ -52,9 +60,9 @@ impl Clone for Candy {
 }
 
 impl Candy {
-    pub fn new(payload: Payload) -> Self {
+    pub fn new(ip_addr: IpAddr, payload: Payload) -> Self {
         Candy {
-            identity:  Identity::me(),
+            identity:  Identity::new(ip_addr),
             timestamp: timestamp(),
             size:      payload.size(),
             payload:   payload.gen(),

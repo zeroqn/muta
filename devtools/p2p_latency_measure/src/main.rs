@@ -7,7 +7,13 @@ mod statistics;
 use gossip::{MeasureLatency, END_GOSSIP_TEST_PAYLOAD};
 use statistics::Statistics;
 
-use std::{env, net::SocketAddr, sync::Arc, thread, time::Duration};
+use std::{
+    env,
+    net::{IpAddr, SocketAddr},
+    sync::Arc,
+    thread,
+    time::Duration,
+};
 
 use core_network::{NetworkConfig, NetworkService};
 use lazy_static::lazy_static;
@@ -36,7 +42,21 @@ async fn main() {
     let mut args = env::args();
 
     let bootstrap = args.nth(1).expect("bootstrap");
-    let listen = args.nth(0).expect("listen address").parse::<SocketAddr>().expect("socket address");
+    let listen = args
+        .nth(0)
+        .expect("listen address")
+        .parse::<SocketAddr>()
+        .expect("socket address");
+    let our_ip = args
+        .nth(0)
+        .expect("our public ip")
+        .parse::<IpAddr>()
+        .expect("ip address");
+    let packet_batch = args
+        .nth(0)
+        .expect("packet batch size")
+        .parse::<isize>()
+        .expect("packet batch isize");
 
     let (mut node, handle) = if bootstrap == "bootstrap" {
         info!("Bootstrap");
@@ -52,8 +72,7 @@ async fn main() {
     } else {
         info!("Peer");
 
-        let bt_addr = bootstrap.parse::<SocketAddr>()
-            .expect("socket address");
+        let bt_addr = bootstrap.parse::<SocketAddr>().expect("socket address");
 
         let peer_conf = NetworkConfig::new()
             .bootstraps(vec![(bt_pubkey.encode(), bt_addr)])
@@ -67,7 +86,9 @@ async fn main() {
     };
 
     // Register measure latency
-    let measure_latency = MeasureLatency::new(Arc::new(handle), statistics);
+    let our_ip = Arc::new(our_ip);
+    let packet_batch = Arc::new(packet_batch);
+    let measure_latency = MeasureLatency::new(our_ip, packet_batch, Arc::new(handle), statistics);
 
     node.register_endpoint_handler(END_GOSSIP_TEST_PAYLOAD, Box::new(measure_latency.clone()))
         .expect("register failure");
