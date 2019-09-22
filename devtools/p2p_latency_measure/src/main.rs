@@ -90,7 +90,7 @@ async fn main() {
     // Parse args
     let config = Config::parse();
 
-    let (mut node, handle) = if let Some(bootstrap) = config.bootstrap {
+    let mut node = if let Some(bootstrap) = config.bootstrap {
         info!("Peer");
 
         let peer_conf = NetworkConfig::new()
@@ -98,10 +98,9 @@ async fn main() {
             .expect("bootstrap failure");
 
         let mut peer = NetworkService::new(peer_conf);
-        let handle = peer.handle();
         peer.listen(config.listen).expect("listen failure");
 
-        (peer, handle)
+        peer
     } else {
         info!("Bootstrap");
 
@@ -109,23 +108,18 @@ async fn main() {
         let bt_conf = NetworkConfig::new().skp(bt_keypair);
 
         let mut bootstrap = NetworkService::new(bt_conf);
-        let handle = bootstrap.handle();
         bootstrap.listen(config.listen).expect("listen failure");
 
-        (bootstrap, handle)
+        bootstrap
     };
 
     // Register measure latency
     let our_ip = Arc::new(config.public_ip);
     let total_packets = Arc::new(config.total_packets);
     let packet_batch = Arc::new(config.packet_batch_size);
-    let measure_latency = MeasureLatency::new(
-        our_ip,
-        total_packets,
-        packet_batch,
-        Arc::new(handle),
-        statistics,
-    );
+    let handle = Arc::new(node.handle());
+    let measure_latency =
+        MeasureLatency::new(our_ip, total_packets, packet_batch, handle, statistics);
 
     node.register_endpoint_handler(END_GOSSIP_TEST_PAYLOAD, Box::new(measure_latency.clone()))
         .expect("register failure");
