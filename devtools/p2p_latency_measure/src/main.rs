@@ -61,7 +61,7 @@ impl Config {
 
         let total_packets = args
             .nth(0)
-            .unwrap_or(MEASURE_GOSSIP_TIMES.to_string())
+            .unwrap_or_else(|| MEASURE_GOSSIP_TIMES.to_string())
             .parse::<isize>()
             .expect("total packet");
 
