@@ -82,7 +82,8 @@ async fn main() {
     // Bootstrap keys
     let bt_keypair =
         SecioKeyPair::secp256k1_raw_key(BOOTSTRAP_SECKEY.as_str()).expect("bootstrap seckey");
-    let bt_pubkey = bt_keypair.to_public_key();
+    let bt_pubkey = hex::encode(bt_keypair.to_public_key().inner_ref());
+    let bt_seckey = hex::encode(BOOTSTRAP_SECKEY.as_bytes());
 
     // Initialize statistics table
     let statistics = Arc::new(Statistics::new());
@@ -94,7 +95,7 @@ async fn main() {
         info!("Peer");
 
         let peer_conf = NetworkConfig::new()
-            .bootstraps(vec![(bt_pubkey.encode(), bootstrap)])
+            .bootstraps(vec![(bt_pubkey, bootstrap)])
             .expect("bootstrap failure");
 
         let mut peer = NetworkService::new(peer_conf);
@@ -105,7 +106,9 @@ async fn main() {
         info!("Bootstrap");
 
         // Configure bootstrap
-        let bt_conf = NetworkConfig::new().skp(bt_keypair);
+        let bt_conf = NetworkConfig::new()
+            .secio_keypair(bt_seckey)
+            .expect("private key");
 
         let mut bootstrap = NetworkService::new(bt_conf);
         bootstrap.listen(config.listen).expect("listen failure");
