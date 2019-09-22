@@ -8,25 +8,23 @@ use protocol::{
     ProtocolResult,
 };
 
-use crate::{
-    common::timestamp, message::Candy, payload::Payload, statistics::Statistics,
-    MEASURE_GOSSIP_TIMES,
-};
+use crate::{common::timestamp, message::Candy, payload::Payload, statistics::Statistics};
 
 pub const END_GOSSIP_TEST_PAYLOAD: &str = "/gossip/benchmark/measure_latency";
 
 #[derive(Constructor, Clone)]
 pub struct MeasureLatency<G: Gossip + 'static> {
-    pub me:           Arc<IpAddr>,
-    pub packet_batch: Arc<isize>,
-    pub gossip:       Arc<G>,
-    pub statistics:   Arc<Statistics>,
+    pub me:            Arc<IpAddr>,
+    pub total_packets: Arc<isize>,
+    pub packet_batch:  Arc<isize>,
+    pub gossip:        Arc<G>,
+    pub statistics:    Arc<Statistics>,
 }
 
 impl<G: Gossip + 'static> MeasureLatency<G> {
     pub fn start(&self) {
         info!("Starting measure latency");
-        info!("Loop times: {}", MEASURE_GOSSIP_TIMES);
+        info!("Loop times: {}", self.total_packets);
 
         for payload in Payload::iter() {
             info!("Using payload size {}", payload);
@@ -34,7 +32,7 @@ impl<G: Gossip + 'static> MeasureLatency<G> {
             let ip_addr = *self.me.as_ref();
             let candy = Candy::new(ip_addr, *payload);
             let gossip = Arc::clone(&self.gossip);
-            let mut gossip_countdown = MEASURE_GOSSIP_TIMES;
+            let mut gossip_countdown = *self.total_packets.as_ref();
 
             while gossip_countdown > 0 {
                 if gossip_countdown % *self.packet_batch.as_ref() == 0 {
