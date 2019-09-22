@@ -1,10 +1,10 @@
 mod common;
-mod gossip;
+mod latency_measure;
 mod message;
 mod payload;
 mod statistics;
 
-use gossip::{MeasureLatency, END_GOSSIP_TEST_PAYLOAD};
+use latency_measure::{MeasureLatency, END_GOSSIP_TEST_PAYLOAD};
 use statistics::Statistics;
 
 use std::{
