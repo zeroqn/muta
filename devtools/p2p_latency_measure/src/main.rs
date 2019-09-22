@@ -3,6 +3,7 @@ mod latency_measure;
 mod message;
 mod payload;
 mod statistics;
+mod tentacle;
 
 use latency_measure::{MeasureLatency, END_GOSSIP_TEST_PAYLOAD};
 use statistics::Statistics;
@@ -91,41 +92,70 @@ async fn main() {
     // Parse args
     let config = Config::parse();
 
+    use self::tentacle::{Recorder, MeasureService, MeasureProtocol};
+    let (msg_tx, msg_rx) = futures::channel::mpsc::unbounded();
+
     let mut node = if let Some(bootstrap) = config.bootstrap {
         info!("Peer");
 
-        let peer_conf = NetworkConfig::new()
-            .bootstraps(vec![(bt_pubkey, bootstrap)])
-            .expect("bootstrap failure");
+        let protocol = MeasureProtocol::new(msg_tx);
+        let proto_meta = protocol.build_meta(1);
 
-        let mut peer = NetworkService::new(peer_conf);
-        peer.listen(config.listen).expect("listen failure");
+        let mut service = MeasureService::new(proto_meta);
+        service.dial(vec![bootstrap]).expect("dial failure");
 
-        peer
+        service
     } else {
         info!("Bootstrap");
 
-        // Configure bootstrap
-        let bt_conf = NetworkConfig::new()
-            .secio_keypair(bt_seckey)
-            .expect("private key");
+        let protocol = MeasureProtocol::new(msg_tx);
+        let proto_meta = protocol.build_meta(1);
 
-        let mut bootstrap = NetworkService::new(bt_conf);
-        bootstrap.listen(config.listen).expect("listen failure");
-
-        bootstrap
+        MeasureService::new(proto_meta)
     };
+
+    node.listen(config.listen).expect("listen failure");
+    let handle = Arc::new(node.gossip());
+
+    // let mut node = if let Some(bootstrap) = config.bootstrap {
+    //     info!("Peer");
+    //
+    //     let peer_conf = NetworkConfig::new()
+    //         .bootstraps(vec![(bt_pubkey, bootstrap)])
+    //         .expect("bootstrap failure");
+    //
+    //     let mut peer = NetworkService::new(peer_conf);
+    //     peer.listen(config.listen).expect("listen failure");
+    //
+    //     peer
+    // } else {
+    //     info!("Bootstrap");
+    //
+    //     // Configure bootstrap
+    //     let bt_conf = NetworkConfig::new()
+    //         .secio_keypair(bt_seckey)
+    //         .expect("private key");
+    //
+    //     let mut bootstrap = NetworkService::new(bt_conf);
+    //     bootstrap.listen(config.listen).expect("listen failure");
+    //
+    //     bootstrap
+    // };
 
     // Register measure latency
     let our_ip = Arc::new(config.public_ip);
     let total_packets = Arc::new(config.total_packets);
     let packet_batch = Arc::new(config.packet_batch_size);
-    let handle = Arc::new(node.handle());
+    // let handle = Arc::new(node.handle());
     let measure_latency =
         MeasureLatency::new(our_ip, total_packets, packet_batch, handle, statistics);
+    let latency = Arc::new(measure_latency);
 
-    node.register_endpoint_handler(END_GOSSIP_TEST_PAYLOAD, Box::new(measure_latency.clone()))
-        .expect("register failure");
+    let recorder = Recorder::new(msg_rx, Arc::clone(&latency));
+    runtime::spawn(recorder);
+
+    // node.register_endpoint_handler(END_GOSSIP_TEST_PAYLOAD, Box::new(measure_latency.clone()))
+    //     .expect("register failure");
 
     // Start node
     runtime::spawn(node);
@@ -134,11 +164,11 @@ async fn main() {
     thread::sleep(Duration::from_secs(10));
 
     // Start latency measurement
-    measure_latency.start();
+    latency.start();
 
     // Print statistics
     info!(
         "statistics: {:?}",
-        measure_latency.statistics().average_latencies()
+        latency.statistics().average_latencies()
     );
 }
