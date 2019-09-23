@@ -2,13 +2,13 @@ use std::{
     future::Future,
     marker::PhantomData,
     pin::Pin,
-    task::{Context as TaskContext, Poll},
     sync::Arc,
+    task::{Context as TaskContext, Poll},
 };
 
-use log::error;
 use futures::{channel::mpsc::UnboundedReceiver, pin_mut, stream::Stream};
-use protocol::traits::{MessageCodec, MessageHandler, Context};
+use log::error;
+use protocol::traits::{Context, MessageCodec, MessageHandler};
 use tentacle::bytes::Bytes;
 
 pub struct Recorder<M, H> {
@@ -42,13 +42,13 @@ where
 
     fn poll(mut self: Pin<&mut Self>, ctx: &mut TaskContext) -> Poll<Self::Output> {
         macro_rules! break_ready {
-            ($poll:expr) => (
+            ($poll:expr) => {
                 match $poll {
                     Poll::Pending => break,
                     Poll::Ready(Some(v)) => v,
                     Poll::Ready(None) => return Poll::Ready(()),
                 }
-            )
+            };
         }
 
         loop {

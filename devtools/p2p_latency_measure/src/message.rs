@@ -1,31 +1,21 @@
-use std::net::IpAddr;
-
 use derive_more::Display;
-use lazy_static::lazy_static;
 use protocol::types::Hash;
-use rand::random;
 use serde_derive::{Deserialize, Serialize};
 
 use crate::{common::timestamp, payload::Payload};
 
-lazy_static! {
-    // identity
-    pub static ref IDENTITY: String = Hash::digest(random::<u64>().to_be_bytes().as_ref().into()).as_hex();
-}
-
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash, Display)]
-#[display(fmt = "identity: ip addr {}, hash {}", ip_addr, hash)]
+#[display(fmt = "identity: name {}, hash {}", name, hash)]
 pub struct Identity {
-    ip_addr: IpAddr,
-    hash:    String,
+    name: String,
+    hash: String,
 }
 
 impl Identity {
-    pub fn new(ip_addr: IpAddr) -> Self {
-        Identity {
-            ip_addr,
-            hash: IDENTITY.to_owned(),
-        }
+    pub fn new(name: String) -> Self {
+        let hash = Hash::digest(name.as_bytes().into()).as_hex();
+
+        Identity { name, hash }
     }
 }
 
@@ -60,9 +50,9 @@ impl Clone for Candy {
 }
 
 impl Candy {
-    pub fn new(ip_addr: IpAddr, payload: Payload) -> Self {
+    pub fn new(name: String, payload: Payload) -> Self {
         Candy {
-            identity:  Identity::new(ip_addr),
+            identity:  Identity::new(name),
             timestamp: timestamp(),
             size:      payload.size(),
             payload:   payload.gen(),

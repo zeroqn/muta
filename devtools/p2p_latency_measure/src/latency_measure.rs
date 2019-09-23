@@ -1,4 +1,4 @@
-use std::{net::IpAddr, sync::Arc, thread, time::Duration};
+use std::{sync::Arc, thread, time::Duration};
 
 use async_trait::async_trait;
 use derive_more::Constructor;
@@ -14,7 +14,7 @@ pub const END_GOSSIP_TEST_PAYLOAD: &str = "/gossip/benchmark/measure_latency";
 
 #[derive(Constructor, Clone)]
 pub struct MeasureLatency<G: Gossip + 'static> {
-    pub me:            Arc<IpAddr>,
+    pub me:            Arc<String>,
     pub total_packets: Arc<isize>,
     pub packet_batch:  Arc<isize>,
     pub gossip:        Arc<G>,
@@ -29,8 +29,8 @@ impl<G: Gossip + 'static> MeasureLatency<G> {
         for payload in Payload::iter() {
             info!("Using payload size {}", payload);
 
-            let ip_addr = *self.me.as_ref();
-            let candy = Candy::new(ip_addr, *payload);
+            let name = self.me.as_ref().clone();
+            let candy = Candy::new(name, *payload);
             let gossip = Arc::clone(&self.gossip);
             let mut gossip_countdown = *self.total_packets.as_ref();
 

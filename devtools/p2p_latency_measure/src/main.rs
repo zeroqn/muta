@@ -1,174 +1,105 @@
+#[macro_use]
 mod common;
+mod ccore_network;
+mod config;
 mod latency_measure;
 mod message;
 mod payload;
 mod statistics;
 mod tentacle;
 
+use self::tentacle::TentacleNode;
+use ccore_network::CoreNetworkNode;
+use config::Config;
 use latency_measure::{MeasureLatency, END_GOSSIP_TEST_PAYLOAD};
 use statistics::Statistics;
 
-use std::{
-    env,
-    net::{IpAddr, SocketAddr},
-    sync::Arc,
-    thread,
-    time::Duration,
-};
+use std::{env, net::SocketAddr, str::FromStr, sync::Arc, thread, time::Duration};
 
-use core_network::{NetworkConfig, NetworkService};
-use lazy_static::lazy_static;
 use log::info;
-use tentacle_secio::SecioKeyPair;
 
-const MEASURE_GOSSIP_TIMES: isize = 1000;
-
-lazy_static! {
-    pub static ref BOOTSTRAP_SECKEY: String = "8".repeat(32);
+enum Target {
+    Tentacle,
+    CoreNetwork,
 }
 
-#[derive(Debug)]
-struct Config {
-    pub bootstrap:         Option<SocketAddr>,
-    pub listen:            SocketAddr,
-    pub public_ip:         IpAddr,
-    pub total_packets:     isize,
-    pub packet_batch_size: isize,
-}
+impl FromStr for Target {
+    type Err = ();
 
-impl Config {
-    pub fn parse() -> Self {
-        let mut args = env::args();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let tar = match s {
+            "tentacle" => Target::Tentacle,
+            "core_network" => Target::CoreNetwork,
+            _ => return Err(()),
+        };
 
-        let bootstrap = args.nth(1).expect("bootstrap").parse::<SocketAddr>().ok();
-
-        let listen = args
-            .nth(0)
-            .expect("listen address")
-            .parse::<SocketAddr>()
-            .expect("socket address");
-
-        let public_ip = args
-            .nth(0)
-            .expect("our public ip")
-            .parse::<IpAddr>()
-            .expect("ip address");
-
-        let packet_batch_size = args
-            .nth(0)
-            .expect("packet batch size")
-            .parse::<isize>()
-            .expect("packet batch isize");
-
-        let total_packets = args
-            .nth(0)
-            .unwrap_or_else(|| MEASURE_GOSSIP_TIMES.to_string())
-            .parse::<isize>()
-            .expect("total packet");
-
-        Config {
-            bootstrap,
-            listen,
-            public_ip,
-            total_packets,
-            packet_batch_size,
-        }
+        Ok(tar)
     }
 }
 
+macro_rules! start_node {
+    ($node:ident, $args:expr) => {{
+        // Initialize statistics table
+        let statistics = Arc::new(Statistics::new());
+
+        // Parse config
+        let config_file = $args.nth(0).expect("config file");
+        let config = Config::parse(config_file);
+
+        let mut node = $node::build(&config);
+
+        // Parse listen
+        let listen = $args
+            .nth(0)
+            .map(|listen| listen.parse::<SocketAddr>().expect("listen"))
+            .unwrap_or_else(|| config.listen);
+
+        node.listen(listen);
+
+        // Parse name
+        let name = Arc::new($args.nth(0).unwrap_or(config.name));
+
+        // Register measure latency
+        let total_packets = Arc::new(config.total_packets);
+        let packet_batch = Arc::new(config.packet_batch);
+        let handle = Arc::new(node.handle());
+
+        let measure_latency =
+            MeasureLatency::new(name, total_packets, packet_batch, handle, statistics);
+
+        node.register(END_GOSSIP_TEST_PAYLOAD, measure_latency.clone())
+            .expect("register failure");
+
+        // Start node
+        runtime::spawn(node);
+
+        // Sleep a while for discovery
+        thread::sleep(Duration::from_secs(10));
+
+        // Start latency measurement
+        measure_latency.start();
+
+        // Print statistics
+        info!(
+            "statistics: {:?}",
+            measure_latency.statistics().average_latencies()
+        );
+    }};
+}
+
+// cargo run --relase [config] [target] [listen] [name]
 #[runtime::main(runtime_tokio::Tokio)]
 async fn main() {
     env_logger::init();
 
-    // Bootstrap keys
-    let bt_keypair =
-        SecioKeyPair::secp256k1_raw_key(BOOTSTRAP_SECKEY.as_str()).expect("bootstrap seckey");
-    let bt_pubkey = hex::encode(bt_keypair.to_public_key().inner_ref());
-    let bt_seckey = hex::encode(BOOTSTRAP_SECKEY.as_bytes());
+    let mut args = env::args();
 
-    // Initialize statistics table
-    let statistics = Arc::new(Statistics::new());
+    // Parse target
+    let target = Target::from_str(&args.nth(1).expect("target")).expect("target");
 
-    // Parse args
-    let config = Config::parse();
-
-    use self::tentacle::{Recorder, MeasureService, MeasureProtocol};
-    let (msg_tx, msg_rx) = futures::channel::mpsc::unbounded();
-
-    let mut node = if let Some(bootstrap) = config.bootstrap {
-        info!("Peer");
-
-        let protocol = MeasureProtocol::new(msg_tx);
-        let proto_meta = protocol.build_meta(1);
-
-        let mut service = MeasureService::new(proto_meta);
-        service.dial(vec![bootstrap]).expect("dial failure");
-
-        service
-    } else {
-        info!("Bootstrap");
-
-        let protocol = MeasureProtocol::new(msg_tx);
-        let proto_meta = protocol.build_meta(1);
-
-        MeasureService::new(proto_meta)
-    };
-
-    node.listen(config.listen).expect("listen failure");
-    let handle = Arc::new(node.gossip());
-
-    // let mut node = if let Some(bootstrap) = config.bootstrap {
-    //     info!("Peer");
-    //
-    //     let peer_conf = NetworkConfig::new()
-    //         .bootstraps(vec![(bt_pubkey, bootstrap)])
-    //         .expect("bootstrap failure");
-    //
-    //     let mut peer = NetworkService::new(peer_conf);
-    //     peer.listen(config.listen).expect("listen failure");
-    //
-    //     peer
-    // } else {
-    //     info!("Bootstrap");
-    //
-    //     // Configure bootstrap
-    //     let bt_conf = NetworkConfig::new()
-    //         .secio_keypair(bt_seckey)
-    //         .expect("private key");
-    //
-    //     let mut bootstrap = NetworkService::new(bt_conf);
-    //     bootstrap.listen(config.listen).expect("listen failure");
-    //
-    //     bootstrap
-    // };
-
-    // Register measure latency
-    let our_ip = Arc::new(config.public_ip);
-    let total_packets = Arc::new(config.total_packets);
-    let packet_batch = Arc::new(config.packet_batch_size);
-    // let handle = Arc::new(node.handle());
-    let measure_latency =
-        MeasureLatency::new(our_ip, total_packets, packet_batch, handle, statistics);
-    let latency = Arc::new(measure_latency);
-
-    let recorder = Recorder::new(msg_rx, Arc::clone(&latency));
-    runtime::spawn(recorder);
-
-    // node.register_endpoint_handler(END_GOSSIP_TEST_PAYLOAD, Box::new(measure_latency.clone()))
-    //     .expect("register failure");
-
-    // Start node
-    runtime::spawn(node);
-
-    // Sleep a while for discovery
-    thread::sleep(Duration::from_secs(10));
-
-    // Start latency measurement
-    latency.start();
-
-    // Print statistics
-    info!(
-        "statistics: {:?}",
-        latency.statistics().average_latencies()
-    );
+    // Start measure
+    match target {
+        Target::Tentacle => start_node!(TentacleNode, args),
+        Target::CoreNetwork => start_node!(CoreNetworkNode, args),
+    }
 }

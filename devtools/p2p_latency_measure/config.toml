@@ -1,0 +1,22 @@
+# Our identity
+name = "fox hound"
+
+# Listen
+listen = "0.0.0.0:13338"
+
+# Total packets per payload
+total_packets = 400
+
+# Batch packets per round
+packet_batch = 200
+
+[core_network]
+# bootstrap or peer
+node = "bootstrap"
+pubkey = "03b2bdeacd4deebb0f930df30a0e0a90efab7c9716e175f1b932d561f0a97be038"
+seckey = "ff3a8f45919175d9aaa11819caf83978796522f965292c4967e750c241424b96"
+bootstrap = "0.0.0.0:13338"
+
+[tentacle]
+# Bootstraps
+bootstraps = ["0.0.0.0:13338", "0.0.0.0:13339"]

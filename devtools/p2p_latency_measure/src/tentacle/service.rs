@@ -1,15 +1,20 @@
-use std::{net::SocketAddr, future::Future, task::{Poll, Context as TaskContext}, pin::Pin};
+use std::{
+    future::Future,
+    net::SocketAddr,
+    pin::Pin,
+    task::{Context as TaskContext, Poll},
+};
 
 use async_trait::async_trait;
 use futures::{
     compat::{Compat01As03, Stream01CompatExt},
+    pin_mut,
     stream::Stream,
-    pin_mut
 };
 use protocol::{
-    traits::{Gossip, Context, Priority, MessageCodec},
-    ProtocolResult,
+    traits::{Context, Gossip, MessageCodec, Priority},
     types::UserAddress,
+    ProtocolResult,
 };
 use tentacle::{
     builder::ServiceBuilder,
@@ -21,6 +26,7 @@ use tentacle::{
 
 use crate::tentacle::error::ServiceError;
 
+#[derive(Clone)]
 pub struct MeasureGossip {
     proto_id: ProtocolId,
     inner:    ServiceControl,
@@ -41,7 +47,14 @@ impl Gossip for MeasureGossip {
         Ok(())
     }
 
-    async fn users_cast<M>(&self, _: Context, _: &str, _: Vec<UserAddress>, _: M, _: Priority) -> ProtocolResult<()>
+    async fn users_cast<M>(
+        &self,
+        _: Context,
+        _: &str,
+        _: Vec<UserAddress>,
+        _: M,
+        _: Priority,
+    ) -> ProtocolResult<()>
     where
         M: MessageCodec,
     {
@@ -101,13 +114,13 @@ impl Future for MeasureService {
 
     fn poll(mut self: Pin<&mut Self>, ctx: &mut TaskContext) -> Poll<Self::Output> {
         macro_rules! break_ready {
-            ($poll:expr) => (
+            ($poll:expr) => {
                 match $poll {
                     Poll::Pending => break,
                     Poll::Ready(Some(v)) => v,
                     Poll::Ready(None) => return Poll::Ready(()),
                 }
-            )
+            };
         }
 
         loop {

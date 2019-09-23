@@ -25,3 +25,4 @@ env_logger = "0.6"
 tentacle = "0.2"
 futures-preview = { version = "0.3.0-alpha.18", features = [ "compat" ] }
 hex = "0.4"
+toml = "0.5"
