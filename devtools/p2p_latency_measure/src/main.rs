@@ -90,6 +90,11 @@ macro_rules! start_node {
 // cargo run --relase [config] [target] [listen] [name]
 #[runtime::main(runtime_tokio::Tokio)]
 async fn main() {
+    // Enable Info log by default
+    if env::var("RUST_LOG").is_err() {
+        env::set_var("RUST_LOG", "info");
+    }
+
     env_logger::init();
 
     let mut args = env::args();
