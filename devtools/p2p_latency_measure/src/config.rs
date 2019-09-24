@@ -1,8 +1,8 @@
 use std::{convert::AsRef, fs::File, io::Read, net::SocketAddr, path::Path};
 
-use serde_derive::{Deserialize, Serialize};
+use serde_derive::Deserialize;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct Config {
     pub name:          String,
     pub listen:        SocketAddr,
@@ -10,9 +10,10 @@ pub struct Config {
     pub packet_batch:  isize,
     pub core_network:  Option<CoreNetwork>,
     pub tentacle:      Option<Tentacle>,
+    pub tokio:         Option<TokioNet>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct CoreNetwork {
     // bootstrap or peer
     pub node:      String,
@@ -21,8 +22,13 @@ pub struct CoreNetwork {
     pub bootstrap: SocketAddr,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct Tentacle {
+    pub bootstraps: Vec<SocketAddr>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TokioNet {
     pub bootstraps: Vec<SocketAddr>,
 }
 

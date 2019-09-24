@@ -7,9 +7,11 @@ mod message;
 mod payload;
 mod statistics;
 mod tentacle;
+mod tokio_net;
 
 use self::tentacle::TentacleNode;
 use ccore_network::CoreNetworkNode;
+use tokio_net::TokioNode;
 use config::Config;
 use latency_measure::{MeasureLatency, END_GOSSIP_TEST_PAYLOAD};
 use statistics::Statistics;
@@ -21,6 +23,7 @@ use log::info;
 enum Target {
     Tentacle,
     CoreNetwork,
+    Tokio,
 }
 
 impl FromStr for Target {
@@ -30,6 +33,7 @@ impl FromStr for Target {
         let tar = match s {
             "tentacle" => Target::Tentacle,
             "core_network" => Target::CoreNetwork,
+            "tokio" => Target::Tokio,
             _ => return Err(()),
         };
 
@@ -87,7 +91,7 @@ macro_rules! start_node {
     }};
 }
 
-// cargo run --relase [config] [target] [listen] [name]
+// cargo run --relase [target] [config] [listen] [name]
 #[runtime::main(runtime_tokio::Tokio)]
 async fn main() {
     // Enable Info log by default
@@ -106,5 +110,6 @@ async fn main() {
     match target {
         Target::Tentacle => start_node!(TentacleNode, args),
         Target::CoreNetwork => start_node!(CoreNetworkNode, args),
+        Target::Tokio => start_node!(TokioNode, args),
     }
 }
