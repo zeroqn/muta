@@ -29,7 +29,7 @@ pub struct Tentacle {
 
 #[derive(Debug, Deserialize)]
 pub struct TokioNet {
-    pub bootstraps: Vec<SocketAddr>,
+    pub nodes: Vec<SocketAddr>,
 }
 
 impl Config {

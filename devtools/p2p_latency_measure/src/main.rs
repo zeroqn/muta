@@ -11,10 +11,10 @@ mod tokio_net;
 
 use self::tentacle::TentacleNode;
 use ccore_network::CoreNetworkNode;
-use tokio_net::TokioNode;
 use config::Config;
 use latency_measure::{MeasureLatency, END_GOSSIP_TEST_PAYLOAD};
 use statistics::Statistics;
+use tokio_net::TokioNode;
 
 use std::{env, net::SocketAddr, str::FromStr, sync::Arc, thread, time::Duration};
 
