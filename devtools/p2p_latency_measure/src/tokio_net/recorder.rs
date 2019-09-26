@@ -6,7 +6,10 @@ use std::{
     task::{Context as TaskContext, Poll},
 };
 
-use futures::{channel::mpsc::UnboundedReceiver, pin_mut, stream::Stream};
+use futures::{
+    channel::mpsc::UnboundedReceiver, compat::Compat01As03, compat::Stream01CompatExt, pin_mut,
+    stream::Stream,
+};
 use log::error;
 use protocol::traits::{Context, MessageCodec, MessageHandler};
 use tokio::{
@@ -15,7 +18,7 @@ use tokio::{
 };
 
 struct Reactor<M, H> {
-    framed:  Framed<TcpStream, LengthDelimitedCodec>,
+    framed:  Compat01As03<Framed<TcpStream, LengthDelimitedCodec>>,
     handler: Arc<H>,
 
     pin_m: PhantomData<M>,
@@ -27,7 +30,7 @@ where
     M: MessageCodec + Unpin,
 {
     pub fn new(stream: TcpStream, handler: Arc<H>) -> Self {
-        let framed = Framed::new(stream, LengthDelimitedCodec::new());
+        let framed = Framed::new(stream, LengthDelimitedCodec::new()).compat();
 
         Reactor {
             framed,

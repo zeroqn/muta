@@ -1,11 +1,13 @@
-use std::net::SocketAddr;
+use std::{io::Error, net::SocketAddr};
 
 use async_trait::async_trait;
 use derive_more::Constructor;
 use futures::{
     channel::mpsc::{unbounded, UnboundedSender},
-    sink::SinkExt,
+    compat::Future01CompatExt,
+    stream::{StreamExt, TryStreamExt},
 };
+use futures01::sink::Sink;
 use log::info;
 use protocol::{
     traits::{Context, Gossip, MessageCodec, Priority},
@@ -20,7 +22,7 @@ use tokio::{
 
 #[derive(Clone, Constructor)]
 pub struct TokioGossip {
-    streams: Vec<UnboundedSender<Bytes>>,
+    streams: Vec<UnboundedSender<Result<Bytes, Error>>>,
 }
 
 impl TokioGossip {
@@ -28,16 +30,17 @@ impl TokioGossip {
         let mut streams = Vec::new();
 
         for addr in socket_addrs.into_iter() {
-            let (tx, mut rx) = unbounded();
-            let stream_fut = TcpStream::connect(addr);
+            let (tx, rx) = unbounded();
+            let stream_fut = TcpStream::connect(&addr);
 
             streams.push(tx);
 
             let gossip_msg = async move {
-                let stream = stream_fut.await.expect("tcp stream");
-                let mut gossip_framed = Framed::new(stream, LengthDelimitedCodec::new());
+                let mut rx = rx.boxed().compat();
+                let stream = stream_fut.compat().await.expect("tcp stream");
+                let gossip_framed = Framed::new(stream, LengthDelimitedCodec::new());
 
-                if gossip_framed.send_all(&mut rx).await.is_err() {
+                if gossip_framed.send_all(&mut rx).compat().await.is_err() {
                     info!("gossip stream closed");
                 }
             };
@@ -59,7 +62,7 @@ impl Gossip for TokioGossip {
 
         for stream in self.streams.iter() {
             stream
-                .unbounded_send(bytes.clone())
+                .unbounded_send(Ok(bytes.clone()))
                 .expect("tokio send bytes");
         }
 

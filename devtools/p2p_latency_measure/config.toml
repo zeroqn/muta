@@ -1,5 +1,5 @@
 # Our identity
-name = "fox hound"
+name = "hound"
 
 # Listen
 listen = "0.0.0.0:13338"

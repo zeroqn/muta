@@ -15,22 +15,23 @@ use std::{
 
 use futures::{
     channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender},
-    executor::block_on,
+    compat::{Compat01As03, Stream01CompatExt},
     pin_mut,
+    stream::Stream,
 };
 use log::{error, info};
 use protocol::{
     traits::{MessageCodec, MessageHandler},
     ProtocolResult,
 };
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::{tcp::Incoming, TcpListener, TcpStream};
 
 use crate::config::Config;
 
 const DEFAUTL_LISTEN: &str = "0.0.0.0:9999";
 
 pub struct TokioNode {
-    listener: TcpListener,
+    incoming: Compat01As03<Incoming>,
 
     gossip: TokioGossip,
 
@@ -47,12 +48,16 @@ impl TokioNode {
     pub fn build(config: &Config) -> Self {
         let nodes = config.tokio.as_ref().expect("tokio").nodes.clone();
 
-        let listener = block_on(TcpListener::bind(DEFAUTL_LISTEN)).expect("listen default");
+        let listen = DEFAUTL_LISTEN
+            .parse::<SocketAddr>()
+            .expect("listen default");
+
+        let listener = TcpListener::bind(&listen).expect("listen default");
         let (stream_tx, stream_rx) = unbounded();
         let gossip = TokioGossip::from(nodes);
 
         TokioNode {
-            listener,
+            incoming: listener.incoming().compat(),
 
             gossip,
 
@@ -68,7 +73,10 @@ impl TokioNode {
     }
 
     pub fn listen(&mut self, socket_addr: SocketAddr) {
-        self.listener = block_on(TcpListener::bind(&socket_addr)).expect("listen");
+        self.incoming = TcpListener::bind(&socket_addr)
+            .expect("listen")
+            .incoming()
+            .compat();
     }
 
     pub fn register<M>(
@@ -95,9 +103,9 @@ impl Future for TokioNode {
             ($poll:expr) => {
                 match $poll {
                     Poll::Pending => break,
-                    Poll::Ready(Ok(v)) => v,
-                    Poll::Ready(Err(err)) => {
-                        error!("listen incoming err {}", err);
+                    Poll::Ready(Some(v)) => v,
+                    Poll::Ready(None) => {
+                        error!("listen closed");
                         return Poll::Ready(());
                     }
                 }
@@ -105,21 +113,26 @@ impl Future for TokioNode {
         }
 
         loop {
-            let (stream, sock_addr) = {
-                let listener = &mut self.as_mut().listener;
-                let accept = listener.accept();
-                pin_mut!(accept);
+            let incoming = &mut self.as_mut().incoming;
+            pin_mut!(incoming);
 
-                incoming_ready!(accept.poll(ctx))
+            let stream = match incoming_ready!(incoming.poll_next(ctx)) {
+                Ok(stream) => stream,
+                Err(err) => {
+                    error!("incoming err {}", err);
+                    return Poll::Ready(());
+                }
             };
 
-            // Check socket address
-            if self.in_addrs.contains(&sock_addr.ip()) {
-                info!("ignore duplicate connection {}", sock_addr);
-                continue;
-            }
+            if let Ok(sock_addr) = stream.peer_addr() {
+                // Check socket address
+                if self.in_addrs.contains(&sock_addr.ip()) {
+                    info!("ignore duplicate connection {}", sock_addr);
+                    continue;
+                }
 
-            self.in_addrs.insert(sock_addr.ip());
+                self.in_addrs.insert(sock_addr.ip());
+            }
 
             // Spawn and read payload
             self.stream_tx.unbounded_send(stream).expect("send stream");

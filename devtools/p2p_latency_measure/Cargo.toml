@@ -26,4 +26,5 @@ tentacle = "0.2"
 futures-preview = { version = "0.3.0-alpha.18", features = [ "compat" ] }
 hex = "0.4"
 toml = "0.5"
-tokio = "0.2.0-alpha.5"
+tokio = "0.1.22"
+futures01 = { package = "futures", version = "0.1.29" }

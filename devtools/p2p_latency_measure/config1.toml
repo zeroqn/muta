@@ -1,8 +1,8 @@
 # Our identity
-name = "fox hound"
+name = "fox"
 
 # Listen
-listen = "0.0.0.0:13338"
+listen = "0.0.0.0:13339"
 
 # Total packets per payload
 total_packets = 400
