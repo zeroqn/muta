@@ -23,13 +23,19 @@ impl CoreNetworkNode {
         let config = config.core_network.as_ref().expect("core network config");
         let node_config = NetworkConfig::new();
 
-        let node_config = match config.node.as_str() {
+        let node_config = match config.ty.as_str() {
             "bootstrap" => node_config
                 .secio_keypair(config.seckey.to_owned())
                 .expect("seckey"),
-            "peer" => node_config
-                .bootstraps(vec![(config.pubkey.to_owned(), config.bootstrap)])
-                .expect("bootstrap"),
+            "peer" => {
+                let bootstraps = config
+                    .bootstraps
+                    .iter()
+                    .map(|node| (node.pubkey.to_owned(), node.addr.clone()))
+                    .collect::<Vec<_>>();
+
+                node_config.bootstraps(bootstraps).expect("bootstrap")
+            }
             _ => panic!("unknown node"),
         };
 

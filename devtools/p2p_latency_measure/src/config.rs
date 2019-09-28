@@ -14,12 +14,17 @@ pub struct Config {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct CoreNetwork {
+pub struct Bootstrap {
     // bootstrap or peer
-    pub node:      String,
-    pub seckey:    String,
-    pub pubkey:    String,
-    pub bootstrap: SocketAddr,
+    pub pubkey: String,
+    pub addr:   SocketAddr,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CoreNetwork {
+    pub ty:         String,
+    pub seckey:     String,
+    pub bootstraps: Vec<Bootstrap>,
 }
 
 #[derive(Debug, Deserialize)]
