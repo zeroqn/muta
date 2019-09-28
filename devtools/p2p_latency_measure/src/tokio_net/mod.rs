@@ -28,74 +28,26 @@ use tokio::net::{tcp::Incoming, TcpListener, TcpStream};
 
 use crate::config::Config;
 
-const DEFAUTL_LISTEN: &str = "0.0.0.0:9999";
-
-pub struct TokioNode {
-    incoming: Compat01As03<Incoming>,
-
-    gossip: TokioGossip,
+struct Inner {
+    incoming:  Compat01As03<Incoming>,
+    stream_tx: UnboundedSender<TcpStream>,
 
     // Save ip addr, make sure no duplicate ip
     in_addrs: HashSet<IpAddr>,
-
-    // Inbound stream deliver, send stream to recorder
-    stream_tx: UnboundedSender<TcpStream>,
-
-    stream_rx: Option<UnboundedReceiver<TcpStream>>,
 }
 
-impl TokioNode {
-    pub fn build(config: &Config) -> Self {
-        let nodes = config.tokio.as_ref().expect("tokio").nodes.clone();
-
-        let listen = DEFAUTL_LISTEN
-            .parse::<SocketAddr>()
-            .expect("listen default");
-
-        let listener = TcpListener::bind(&listen).expect("listen default");
-        let (stream_tx, stream_rx) = unbounded();
-        let gossip = TokioGossip::from(nodes);
-
-        TokioNode {
-            incoming: listener.incoming().compat(),
-
-            gossip,
+impl Inner {
+    pub fn new(incoming: Compat01As03<Incoming>, stream_tx: UnboundedSender<TcpStream>) -> Self {
+        Inner {
+            incoming,
+            stream_tx,
 
             in_addrs: Default::default(),
-
-            stream_tx,
-            stream_rx: Some(stream_rx),
         }
-    }
-
-    pub fn handle(&mut self) -> TokioGossip {
-        self.gossip.clone()
-    }
-
-    pub fn listen(&mut self, socket_addr: SocketAddr) {
-        self.incoming = TcpListener::bind(&socket_addr)
-            .expect("listen")
-            .incoming()
-            .compat();
-    }
-
-    pub fn register<M>(
-        &mut self,
-        _: &str,
-        handler: impl MessageHandler<Message = M>,
-    ) -> ProtocolResult<()>
-    where
-        M: MessageCodec + Unpin,
-    {
-        let stream_rx = self.stream_rx.take().expect("no reactor");
-        let reactor = Recorder::new(stream_rx, Arc::new(handler));
-
-        runtime::spawn(reactor);
-        Ok(())
     }
 }
 
-impl Future for TokioNode {
+impl Future for Inner {
     type Output = ();
 
     fn poll(mut self: Pin<&mut Self>, ctx: &mut Context) -> Poll<Self::Output> {
@@ -138,6 +90,62 @@ impl Future for TokioNode {
             self.stream_tx.unbounded_send(stream).expect("send stream");
         }
 
+        Poll::Pending
+    }
+}
+
+pub struct TokioNode {
+    gossip:    TokioGossip,
+    stream_rx: Option<UnboundedReceiver<TcpStream>>,
+}
+
+impl TokioNode {
+    pub fn build(config: &Config) -> Self {
+        let (stream_tx, stream_rx) = unbounded();
+        let incoming = TcpListener::bind(&config.listen)
+            .expect("listen")
+            .incoming()
+            .compat();
+
+        runtime::spawn(Inner::new(incoming, stream_tx));
+
+        let nodes = config.tokio.as_ref().expect("tokio").nodes.clone();
+        let gossip = TokioGossip::from(nodes);
+
+        TokioNode {
+            gossip,
+            stream_rx: Some(stream_rx),
+        }
+    }
+
+    pub fn handle(&mut self) -> TokioGossip {
+        self.gossip.clone()
+    }
+
+    pub fn listen(&mut self, _: SocketAddr) {
+        // noop, already listen on config.listen
+    }
+
+    pub fn register<M>(
+        &mut self,
+        _: &str,
+        handler: impl MessageHandler<Message = M>,
+    ) -> ProtocolResult<()>
+    where
+        M: MessageCodec + Unpin,
+    {
+        let stream_rx = self.stream_rx.take().expect("no reactor");
+        let reactor = Recorder::new(stream_rx, Arc::new(handler));
+
+        runtime::spawn(reactor);
+        Ok(())
+    }
+}
+
+impl Future for TokioNode {
+    type Output = ();
+
+    fn poll(self: Pin<&mut Self>, _ctx: &mut Context) -> Poll<Self::Output> {
         Poll::Pending
     }
 }

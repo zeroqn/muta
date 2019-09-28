@@ -1,6 +1,5 @@
-use std::{io::Error, net::SocketAddr, sync::Arc, thread, time::Duration};
+use std::{io::Error, net::SocketAddr, sync::Arc};
 
-use parking_lot::RwLock;
 use async_trait::async_trait;
 use derive_more::Constructor;
 use futures::{
@@ -10,6 +9,7 @@ use futures::{
 };
 use futures01::sink::Sink;
 use log::info;
+use parking_lot::RwLock;
 use protocol::{
     traits::{Context, Gossip, MessageCodec, Priority},
     types::UserAddress,
@@ -38,8 +38,6 @@ impl TokioGossip {
             let streams = Arc::clone(&streams);
 
             let gossip_msg = async move {
-                thread::sleep(Duration::from_secs(3));
-
                 let mut rx = rx.boxed().compat();
                 let stream = stream_fut.compat().await.expect("tcp stream");
                 let gossip_framed = Framed::new(stream, LengthDelimitedCodec::new());

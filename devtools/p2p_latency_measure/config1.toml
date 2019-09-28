@@ -5,10 +5,10 @@ name = "fox"
 listen = "0.0.0.0:13339"
 
 # Total packets per payload
-total_packets = 400
+total_packets = 100
 
 # Batch packets per round
-packet_batch = 200
+packet_batch = 50
 
 [core_network]
 # bootstrap or peer
