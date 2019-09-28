@@ -36,7 +36,7 @@ impl<G: Gossip + 'static> MeasureLatency<G> {
 
             while gossip_countdown > 0 {
                 if gossip_countdown % *self.packet_batch.as_ref() == 0 {
-                    thread::sleep(Duration::from_secs(5));
+                    thread::sleep(Duration::from_secs(2));
                 }
 
                 let gossip = Arc::clone(&gossip);
@@ -57,8 +57,8 @@ impl<G: Gossip + 'static> MeasureLatency<G> {
             }
 
             info!("End payload size {}", payload);
-            info!("Sleep 10s");
-            thread::sleep(Duration::from_secs(10));
+            info!("Sleep 2s");
+            thread::sleep(Duration::from_secs(2));
         }
     }
 
