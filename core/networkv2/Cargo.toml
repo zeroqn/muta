@@ -1,0 +1,26 @@
+[package]
+name = "core-networkv2"
+version = "0.1.0-alpha.0"
+authors = ["Muta Dev <muta@nervos.org>"]
+edition = "2018"
+repository = "https://github.com/nervosnetwork/muta"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+muta-protocol = { path = "../../protocol/" }
+
+wormhole = { git = "https://github.com/zeroqn/wormhole", branch = "master" }
+lazy_static = "1.4.0"
+async-trait = "0.1.22"
+anyhow = "1.0.26"
+thiserror = "1.0.9"
+log = "0.4.8"
+futures = "0.3.1"
+derive_more = "0.99.2"
+serde_derive = "1.0.104"
+serde = "1.0.104"
+tokio = { version = "0.2", features = ["rt-core", "rt-threaded", "time", "macros", "sync", "io-std", "io-util"] }
+
+[dev-dependencies]
+rand = "0.7.2"
