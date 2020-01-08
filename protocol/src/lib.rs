@@ -40,12 +40,12 @@ pub enum ProtocolErrorKind {
 #[display(fmt = "[ProtocolError] Kind: {:?} Error: {:?}", kind, error)]
 pub struct ProtocolError {
     kind:  ProtocolErrorKind,
-    error: Box<dyn Error + Send>,
+    error: Box<dyn Error + Send + Sync + 'static>,
 }
 
 impl From<ProtocolError> for Box<dyn Error + Send> {
     fn from(error: ProtocolError) -> Self {
-        Box::new(error) as Box<dyn Error + Send>
+        Box::new(error) as Box<dyn Error + Send + Sync + 'static>
     }
 }
 

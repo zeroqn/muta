@@ -22,7 +22,7 @@ pub trait MessageCodec: Sized + Send + Debug + 'static {
 
 #[derive(Debug, Display)]
 #[display(fmt = "cannot serde encode or decode: {}", _0)]
-struct SerdeError(Box<dyn Error + Send>);
+struct SerdeError(Box<dyn Error + Send + Sync + 'static>);
 
 impl Error for SerdeError {}
 
