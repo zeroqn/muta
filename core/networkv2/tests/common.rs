@@ -4,6 +4,9 @@ use wormhole::crypto::{PrivateKey, PublicKey};
 pub enum CommonError {
     #[error("no socket address")]
     NoSocketAddress,
+
+    #[error("no message")]
+    NoMessage,
 }
 
 pub fn random_keypair() -> (PrivateKey, PublicKey) {

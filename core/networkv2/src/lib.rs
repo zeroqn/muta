@@ -2,4 +2,4 @@ mod context;
 mod protocols;
 
 pub use context::NetworkContext;
-pub use protocols::RpcService;
+pub use protocols::{BroadcastService, RpcService};

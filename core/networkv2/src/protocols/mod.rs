@@ -1,4 +1,6 @@
+mod broadcast;
 mod rpc;
+pub use broadcast::BroadcastService;
 pub use rpc::RpcService;
 
 use lazy_static::lazy_static;
