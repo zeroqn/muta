@@ -3,10 +3,11 @@ use common::CommonError;
 
 use anyhow::Error;
 use async_trait::async_trait;
-use core_networkv2::BroadcastService;
-use futures::{channel::mpsc, lock::Mutex, StreamExt};
+use core_networkv2::{BroadcastService, PeerStore};
+use futures::{channel::mpsc, lock::Mutex, StreamExt, TryFutureExt};
 use muta_protocol::{
     traits::{Context, MessageHandler},
+    types::Address,
     ProtocolError, ProtocolErrorKind, ProtocolResult,
 };
 use wormhole::{
@@ -14,7 +15,7 @@ use wormhole::{
     host::{Host, QuicHost},
     multiaddr::{Multiaddr, MultiaddrExt},
     network::Connectedness,
-    peer_store::{PeerInfo, PeerStore},
+    peer_store::PeerInfo,
 };
 
 use std::{net::ToSocketAddrs, sync::Arc};
@@ -59,12 +60,12 @@ async fn make_broadcast_service<A: ToSocketAddrs>(
     let multiaddr = Multiaddr::quic_peer(sock_addr, pk.peer_id());
 
     let peer_info = PeerInfo::with_all(pk.clone(), Connectedness::Connected, multiaddr.clone());
-    peer_store.register(peer_info).await;
+    peer_store.register(peer_info).await?;
 
-    let mut host = QuicHost::make(&sk, peer_store.clone())?;
+    let mut host = QuicHost::make(&sk, peer_store.inner())?;
     host.listen(multiaddr.clone()).await?;
 
-    let cast_serv = BroadcastService::new(host.clone());
+    let cast_serv = BroadcastService::new(host.clone(), peer_store);
     Ok((cast_serv, pk, multiaddr, host))
 }
 
@@ -83,8 +84,8 @@ async fn test_broadcast_service() -> Result<(), Error> {
 
     let bob_info = PeerInfo::with_addr(bob_pk.peer_id(), bob_addr);
     let ciri_info = PeerInfo::with_addr(ciri_pk.peer_id(), ciri_addr);
-    alice_store.register(bob_info).await;
-    alice_store.register(ciri_info).await;
+    alice_store.register(bob_info).await?;
+    alice_store.register(ciri_info).await?;
 
     let (alice_tx, _alice_rx) = mpsc::channel(10);
     let (bob_tx, mut bob_rx) = mpsc::channel(10);
@@ -126,6 +127,97 @@ async fn test_broadcast_service() -> Result<(), Error> {
             .await?;
 
         Ok::<(), Error>(())
+    });
+
+    let bob_recv = bob_rx.next().await.ok_or(CommonError::NoMessage)?;
+    assert_eq!(bob_recv, "from alice");
+
+    let ciri_recv = ciri_rx.next().await.ok_or(CommonError::NoMessage)?;
+    assert_eq!(ciri_recv, "from alice");
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_usercast_service() -> Result<(), Error> {
+    let alice_store = PeerStore::default();
+    let bob_store = PeerStore::default();
+    let ciri_store = PeerStore::default();
+
+    let (alice_serv, .., alice_host) =
+        make_broadcast_service(("127.0.0.1", 3020), alice_store.clone()).await?;
+    let (bob_serv, bob_pk, bob_addr, ..) =
+        make_broadcast_service(("127.0.0.1", 3021), bob_store.clone()).await?;
+    let (ciri_serv, ciri_pk, ciri_addr, ..) =
+        make_broadcast_service(("127.0.0.1", 3022), ciri_store.clone()).await?;
+
+    let mut bob_info = PeerInfo::with_addr(bob_pk.peer_id(), bob_addr);
+    bob_info.set_pubkey(bob_pk.clone())?;
+    alice_store.register(bob_info).await?;
+
+    let mut ciri_info = PeerInfo::with_addr(ciri_pk.peer_id(), ciri_addr);
+    ciri_info.set_pubkey(ciri_pk.clone())?;
+    alice_store.register(ciri_info).await?;
+
+    let (alice_tx, _alice_rx) = mpsc::channel(10);
+    let (bob_tx, mut bob_rx) = mpsc::channel(10);
+    let (ciri_tx, mut ciri_rx) = mpsc::channel(10);
+
+    {
+        let whitehole_handler = WhiteHoleMessageHandler::new(alice_tx);
+        alice_serv
+            .register_then_spawn(WHITE_HOLE_ENDPOINT, whitehole_handler)
+            .await?;
+    }
+
+    {
+        let whitehole_handler = WhiteHoleMessageHandler::new(bob_tx);
+        bob_serv
+            .register_then_spawn(WHITE_HOLE_ENDPOINT, whitehole_handler)
+            .await?;
+    }
+
+    {
+        let whitehole_handler = WhiteHoleMessageHandler::new(ciri_tx);
+        ciri_serv
+            .register_then_spawn(WHITE_HOLE_ENDPOINT, whitehole_handler)
+            .await?;
+    }
+
+    alice_host
+        .network()
+        .dial_peer(Context::new(), &bob_pk.peer_id())
+        .await?;
+
+    tokio::spawn(async move {
+        let cast = async move {
+            // Already connected
+            alice_serv
+                .usercast(
+                    Context::new(),
+                    WHITE_HOLE_ENDPOINT,
+                    vec![Address::from_pubkey_bytes(bob_pk.to_bytes())?],
+                    "from alice".to_owned(),
+                )
+                .await?;
+
+            // Has peer id but not connected yet
+            alice_serv
+                .usercast(
+                    Context::new(),
+                    WHITE_HOLE_ENDPOINT,
+                    vec![Address::from_pubkey_bytes(ciri_pk.to_bytes())?],
+                    "from alice".to_owned(),
+                )
+                .await?;
+
+            Ok::<(), Error>(())
+        };
+
+        cast.unwrap_or_else(move |err| {
+            panic!("{}", err);
+        })
+        .await;
     });
 
     let bob_recv = bob_rx.next().await.ok_or(CommonError::NoMessage)?;

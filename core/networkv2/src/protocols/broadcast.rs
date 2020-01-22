@@ -1,13 +1,17 @@
 use super::next_protocol_id;
-use crate::context::NetworkContext;
+use crate::{context::NetworkContext, peer_store::PeerStore};
 
 use anyhow::{Context as ErrorContext, Error};
 use async_trait::async_trait;
 use derive_more::Display;
 use futures::{self, channel::mpsc, lock::Mutex, SinkExt, TryFutureExt, TryStreamExt};
 use log::{debug, error, info, warn};
-use muta_protocol::traits::{Context, MessageCodec, MessageHandler};
+use muta_protocol::{
+    traits::{Context, MessageCodec, MessageHandler},
+    types::Address,
+};
 use wormhole::{
+    crypto::PeerId,
     host::{FramedStream, Host, ProtocolHandler},
     network::{Protocol, ProtocolId},
 };
@@ -29,6 +33,9 @@ pub enum BroadcastError {
 
     #[error("stream closed")]
     StreamClosed,
+
+    #[error("user addresses not found {0:?}")]
+    UserAddrsNotFound(Vec<Address>),
 }
 
 #[derive(Clone, Display)]
@@ -187,14 +194,18 @@ impl Hash for BroadcastProtocolEndpoint {
 
 #[derive(Clone)]
 pub struct BroadcastService<H: Host + Clone + 'static> {
-    host:          H,
+    host:       H,
+    peer_store: PeerStore,
+
     endpoint_book: Arc<Mutex<HashSet<BroadcastProtocolEndpoint>>>,
 }
 
 impl<H: Host + Clone + 'static> BroadcastService<H> {
-    pub fn new(host: H) -> Self {
+    pub fn new(host: H, peer_store: PeerStore) -> Self {
         BroadcastService {
             host,
+            peer_store,
+
             endpoint_book: Default::default(),
         }
     }
@@ -229,11 +240,44 @@ impl<H: Host + Clone + 'static> BroadcastService<H> {
         &self,
         ctx: Context,
         endpoint: &'static str,
+        msg: M,
+    ) -> Result<(), Error> {
+        let peers = self.host.network().peers().await;
+        self.multicast(ctx, endpoint, peers, msg).await?;
+
+        Ok(())
+    }
+
+    pub async fn usercast<M: MessageCodec>(
+        &self,
+        ctx: Context,
+        endpoint: &'static str,
+        user_addrs: Vec<Address>,
+        msg: M,
+    ) -> Result<(), Error> {
+        let (peers, not_found) = self.peer_store.peers_by_user_addrs(user_addrs).await;
+        println!("{:?} {:?}", peers, not_found);
+
+        self.multicast(ctx, endpoint, peers, msg).await?;
+
+        if !not_found.is_empty() {
+            Err(BroadcastError::UserAddrsNotFound(not_found).into())
+        } else {
+            Ok(())
+        }
+    }
+
+    async fn multicast<M: MessageCodec>(
+        &self,
+        ctx: Context,
+        endpoint: &'static str,
+        peers: Vec<PeerId>,
         mut msg: M,
     ) -> Result<(), Error> {
         let encoded_msg = M::encode(&mut msg)
             .await
             .with_context(|| format!("encode broadcast {} message", endpoint))?;
+
         let proto = {
             self.endpoint_book
                 .lock()
@@ -243,15 +287,15 @@ impl<H: Host + Clone + 'static> BroadcastService<H> {
                 .proto
         };
 
-        for connected_peer in self.host.network().peers().await {
+        for peer in peers {
             let proto = proto.clone();
             let host = self.host.clone();
             let msg = encoded_msg.clone();
-            let remote_peer = connected_peer.clone();
+            let remote_peer = peer.clone();
             let ctx = ctx.clone();
 
             let do_broadcast = async move {
-                let mut stream = host.new_stream(ctx, &connected_peer, proto).await?;
+                let mut stream = host.new_stream(ctx, &peer, proto).await?;
 
                 stream.send(msg).await.context("write broadcast msg")?;
 
