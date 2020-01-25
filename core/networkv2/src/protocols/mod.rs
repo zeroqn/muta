@@ -1,5 +1,8 @@
+mod bootstrap;
 mod broadcast;
 mod rpc;
+
+pub use bootstrap::BootstrapService;
 pub use broadcast::BroadcastService;
 pub use rpc::RpcService;
 
