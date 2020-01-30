@@ -1,8 +1,11 @@
+mod config;
 mod context;
+mod error;
+mod network;
+mod p2p;
 mod peer_store;
 mod protocols;
-mod service;
 
 pub use context::NetworkContext;
 pub use peer_store::PeerStore;
-pub use protocols::{BootstrapService, BroadcastService, RpcService};
+pub use protocols::{BroadcastService, RpcService};
