@@ -11,7 +11,7 @@ pub use rpc::RpcService;
 use anyhow::Error;
 use lazy_static::lazy_static;
 use muta_protocol::{
-    traits::{Context, MessageCodec, Priority},
+    traits::{Context, MessageCodec, MessageHandler, Priority},
     types::Address,
     ProtocolResult,
 };
@@ -30,6 +30,14 @@ fn next_protocol_id() -> u64 {
 pub struct MultiCast {}
 
 impl MultiCast {
+    pub async fn register_endpoint(
+        &self,
+        endpoint: &'static str,
+        handler: impl MessageHandler,
+    ) -> Result<(), Error> {
+        todo!()
+    }
+
     pub async fn broadcast<M: MessageCodec>(
         &self,
         ctx: Context,
@@ -54,6 +62,14 @@ impl MultiCast {
 pub struct Rpc {}
 
 impl Rpc {
+    pub async fn register_endpoint(
+        &self,
+        endpoint: &'static str,
+        handler: impl MessageHandler,
+    ) -> Result<(), Error> {
+        todo!()
+    }
+
     pub async fn call<P: MessageCodec, R: MessageCodec>(
         &self,
         ctx: Context,

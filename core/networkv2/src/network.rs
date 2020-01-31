@@ -14,7 +14,7 @@ use futures::{
 };
 use log::{debug, error};
 use muta_protocol::{
-    traits::{Context, MessageCodec, Priority},
+    traits::{Context, MessageCodec, MessageHandler, Priority},
     types::Address,
     ProtocolResult,
 };
@@ -191,6 +191,31 @@ impl Network {
 
         self.peer_store.register_multi_peers(peer_infos).await;
         Ok(self.p2p.bootstrap(Context::new(), peer_ids).await?)
+    }
+
+    pub async fn register_endpoint_handler<M>(
+        &self,
+        endpoint: &'static str,
+        handler: impl MessageHandler<Message = M>,
+    ) -> ProtocolResult<()>
+    where
+        M: MessageCodec,
+    {
+        if endpoint.starts_with("/muta/rpc/") {
+            Ok(self
+                .rpc
+                .register_endpoint(endpoint, handler)
+                .err_into::<NetworkError>()
+                .await?)
+        } else if endpoint.starts_with("/muta/multicast/") {
+            Ok(self
+                .multicast
+                .register_endpoint(endpoint, handler)
+                .err_into::<NetworkError>()
+                .await?)
+        } else {
+            Err(NetworkError::UnsupportedEndpoint(endpoint).into())
+        }
     }
 
     fn maintain(&mut self) -> FutTask<Result<(), Error>> {
