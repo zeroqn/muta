@@ -29,7 +29,7 @@ use std::{
 #[derive(thiserror::Error, Debug)]
 pub enum BroadcastError {
     #[error("unregistered endpoint {0}")]
-    UnregisteredEndpoint(&'static str),
+    UnregisteredEndpoint(String),
 
     #[error("stream closed")]
     StreamClosed,
@@ -239,7 +239,7 @@ impl<H: Host + Clone + 'static> BroadcastService<H> {
     pub async fn broadcast<M: MessageCodec>(
         &self,
         ctx: Context,
-        endpoint: &'static str,
+        endpoint: &str,
         msg: M,
     ) -> Result<(), Error> {
         let peers = self.host.network().peers().await;
@@ -251,17 +251,17 @@ impl<H: Host + Clone + 'static> BroadcastService<H> {
     pub async fn usercast<M: MessageCodec>(
         &self,
         ctx: Context,
-        endpoint: &'static str,
+        endpoint: &str,
         user_addrs: Vec<Address>,
         msg: M,
     ) -> Result<(), Error> {
-        let (peers, not_found) = self.peer_store.peers_by_user_addrs(user_addrs).await;
+        let (peers, not_found) = self.peer_store.peer_ids_by_chain_addrs(user_addrs).await;
         println!("{:?} {:?}", peers, not_found);
 
         self.multicast(ctx, endpoint, peers, msg).await?;
 
         if !not_found.is_empty() {
-            Err(BroadcastError::UserAddrsNotFound(not_found).into())
+            Err(BroadcastError::UserAddrsNotFound(not_found.to_owned()).into())
         } else {
             Ok(())
         }
@@ -270,7 +270,7 @@ impl<H: Host + Clone + 'static> BroadcastService<H> {
     async fn multicast<M: MessageCodec>(
         &self,
         ctx: Context,
-        endpoint: &'static str,
+        endpoint: &str,
         peers: Vec<PeerId>,
         mut msg: M,
     ) -> Result<(), Error> {
@@ -283,7 +283,7 @@ impl<H: Host + Clone + 'static> BroadcastService<H> {
                 .lock()
                 .await
                 .get(endpoint)
-                .ok_or(BroadcastError::UnregisteredEndpoint(endpoint))?
+                .ok_or(BroadcastError::UnregisteredEndpoint(endpoint.to_owned()))?
                 .proto
         };
 

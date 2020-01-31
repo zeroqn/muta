@@ -22,14 +22,14 @@ pub enum ErrorKind {
     #[display(fmt = "kind: bad protocl logic code")]
     BadProtocolHandle {
         proto_id: ProtocolId,
-        cause:    Box<dyn Error + Send>,
+        cause:    Box<dyn Error + Send + Sync>,
     },
 
     #[display(fmt = "kind: given string isn't an id: {}", _0)]
     NotIdString(ParseIntError),
 
     #[display(fmt = "kind: unable to encode or decode: {}", _0)]
-    BadMessage(Box<dyn Error + Send>),
+    BadMessage(Box<dyn Error + Send + Sync>),
 
     #[display(fmt = "kind: unknown rid {} from session {}", rid, sid)]
     UnknownRpc { sid: SessionId, rid: u64 },
@@ -110,7 +110,7 @@ pub enum NetworkError {
     Shutdown,
 
     #[display(fmt = "unexected error: {}", _0)]
-    UnexpectedError(Box<dyn Error + Send>),
+    UnexpectedError(Box<dyn Error + Send + Sync>),
 
     #[display(fmt = "cannot decode public key bytes")]
     InvalidPublicKey,
@@ -125,7 +125,7 @@ pub enum NetworkError {
     UnexpectedScheme(String),
 
     #[display(fmt = "cannot serde encode or decode: {}", _0)]
-    SerdeError(Box<dyn Error + Send>),
+    SerdeError(Box<dyn Error + Send + Sync>),
 
     #[display(fmt = "malformat or exceed maximum length, /[scheme]/[name]/[method] etc")]
     NotEndpoint,
@@ -137,7 +137,7 @@ pub enum NetworkError {
     RemoteResponse(Box<dyn Error + Send>),
 
     #[display(fmt = "internal error: {}", _0)]
-    Internal(Box<dyn Error + Send>),
+    Internal(Box<dyn Error + Send + Sync>),
 }
 
 impl Error for NetworkError {}

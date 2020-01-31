@@ -1,12 +1,12 @@
 // mod bootstrap;
 mod broadcast;
 mod discovery;
-mod rpc;
+// mod rpc;
 
 // pub use bootstrap::BootstrapService;
 pub use broadcast::BroadcastService;
 pub use discovery::Discovery;
-pub use rpc::RpcService;
+// pub use rpc::RpcService;
 
 use anyhow::Error;
 use lazy_static::lazy_static;

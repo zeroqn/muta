@@ -10,7 +10,8 @@ repository = "https://github.com/nervosnetwork/muta"
 [dependencies]
 muta-protocol = { path = "../../protocol/" }
 
-wormhole = { git = "https://github.com/zeroqn/wormhole", branch = "master" }
+# wormhole = { git = "https://github.com/zeroqn/wormhole", branch = "master" }
+wormhole = { path = "../../../quic/wormhole" }
 lazy_static = "1.4.0"
 async-trait = "0.1.22"
 anyhow = "1.0.26"
@@ -24,3 +25,5 @@ tokio = { version = "0.2", features = ["rt-core", "rt-threaded", "time", "macros
 
 [dev-dependencies]
 rand = "0.7.2"
+tracing-subscriber = "0.1"
+tracing = "0.1"
