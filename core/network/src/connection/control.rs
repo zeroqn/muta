@@ -48,7 +48,7 @@ impl<P: NetworkProtocol> Clone for ConnectionServiceControl<P> {
 #[async_trait]
 impl<P: NetworkProtocol> MessageSender for ConnectionServiceControl<P> {
     fn send(&self, tar: TargetSession, msg: Bytes, pri: Priority) -> Result<(), NetworkError> {
-        let proto_id = P::message_proto_id();
+        let proto_id = P::transmitter_id();
 
         let ret = match pri {
             Priority::High => self.inner.quick_filter_broadcast(tar, proto_id, msg),
