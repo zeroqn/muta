@@ -243,7 +243,7 @@ impl<Adapter: SynchronizationAdapter> OverlordSynchronization<Adapter> {
             .get_txs_from_remote(ctx, &block.ordered_tx_hashes)
             .await?;
         if block.ordered_tx_hashes.len() > 2000 {
-            log::warn!("pull txs {} cost {} ms", height, now.elapsed().unwrap().as_millis());
+            log::warn!("pull txs {} cost {} ms", block.ordered_tx_hashes.len(), now.elapsed().unwrap().as_millis());
         }
 
         Ok(RichBlock { block, txs })
