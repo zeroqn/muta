@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 use async_trait::async_trait;
 use futures::lock::Mutex;
@@ -231,19 +231,36 @@ impl<Adapter: SynchronizationAdapter> OverlordSynchronization<Adapter> {
         ctx: Context,
         height: u64,
     ) -> ProtocolResult<RichBlock> {
+        let mut now = SystemTime::now();
         let block = self.get_block_from_remote(ctx.clone(), height).await?;
+        if block.ordered_tx_hashes.len() > 2000 {
+            log::warn!("pull block {} cost {} ms", height, now.elapsed().unwrap().as_millis());
+        }
+
+        now = SystemTime::now();
         let txs = self
             .adapter
             .get_txs_from_remote(ctx, &block.ordered_tx_hashes)
             .await?;
+        if block.ordered_tx_hashes.len() > 2000 {
+            log::warn!("pull txs {} cost {} ms", height, now.elapsed().unwrap().as_millis());
+        }
 
         Ok(RichBlock { block, txs })
     }
 
     async fn get_block_from_remote(&self, ctx: Context, height: u64) -> ProtocolResult<Block> {
-        self.adapter
+        let now = SystemTime::now();
+
+        let block = self.adapter
             .get_block_from_remote(ctx.clone(), height)
-            .await
+            .await?;
+
+        if block.ordered_tx_hashes.len() > 2000 {
+            log::warn!("pull block {} cost {} ms", height, now.elapsed().unwrap().as_millis());
+        }
+
+        Ok(block)
     }
 
     async fn save_chain_data(

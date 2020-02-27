@@ -90,6 +90,11 @@ where
                     handler.process(ctx, content).await
                 }
                 EndpointScheme::RpcResponse => {
+                    if net_msg.content.len() > 500 {
+                        log::warn!("rpc response bigger than 500 bytes, {}", net_msg.content.len());
+                        log::warn!("rpc endpoint {}", endpoint);
+                    }
+
                     let content = RpcResponse::decode(Bytes::from(net_msg.content)).await?;
                     let rpc_endpoint = RpcEndpoint::try_from(endpoint)?;
                     let rpc_id = rpc_endpoint.rpc_id().value();

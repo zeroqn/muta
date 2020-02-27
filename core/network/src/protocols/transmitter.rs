@@ -42,6 +42,10 @@ impl ServiceProtocol for Transmitter {
         // Peers without encryption will not able to connect to us.
         let peer_id = pubkey.expect("impossible, no public key").peer_id();
 
+        if data.len() > 500 {
+            log::warn!("recv data bigger than 500 bytes, {}", data.len());
+        }
+
         let raw_msg = RawSessionMessage::new(ctx.session.id, peer_id, data);
         if self.msg_deliver.unbounded_send(raw_msg).is_err() {
             error!("network: transmitter: msg receiver dropped");
