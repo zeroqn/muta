@@ -92,7 +92,7 @@ where
                 EndpointScheme::RpcResponse => {
                     if net_msg.content.len() > 500 {
                         log::warn!("rpc response bigger than 500 bytes, {}", net_msg.content.len());
-                        log::warn!("rpc endpoint {}, connected addr {}", endpoint, connected_addr);
+                        log::warn!("rpc endpoint {}, connected addr {:?}", endpoint, connected_addr);
                     }
 
                     let content = RpcResponse::decode(Bytes::from(net_msg.content)).await?;
