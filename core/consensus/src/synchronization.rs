@@ -238,10 +238,21 @@ impl<Adapter: SynchronizationAdapter> OverlordSynchronization<Adapter> {
         }
 
         now = SystemTime::now();
-        let txs = self
-            .adapter
-            .get_txs_from_remote(ctx, &block.ordered_tx_hashes)
-            .await?;
+        let mut txs = Vec::with_capacity(block.ordered_tx_hashes.len());
+        for tx_hashes in block.ordered_tx_hashes.chunks(1000) {
+            let chunk_now = SystemTime::now();
+            let remote_txs = self
+                .adapter
+                .get_txs_from_remote(ctx.clone(), &tx_hashes)
+                .await?;
+            if block.ordered_tx_hashes.len() > 2000 {
+                log::warn!("pull txs chunk {} cost {} ms", tx_hashes.len(), chunk_now.elapsed().unwrap().as_millis());
+            }
+
+            for remote_tx in remote_txs.into_iter() {
+                txs.push(remote_tx);
+            }
+        }
         if block.ordered_tx_hashes.len() > 2000 {
             log::warn!("pull txs {} cost {} ms", block.ordered_tx_hashes.len(), now.elapsed().unwrap().as_millis());
         }
