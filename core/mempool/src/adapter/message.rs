@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use futures::future::{try_join_all, TryFutureExt};
 use protocol::{
-    traits::{Context, MemPool, MessageHandler, Priority, Rpc, Storage},
+    traits::{Context, MemPool, MessageHandler, Priority, Rpc, Storage, TrustFeedback},
     types::{Hash, SignedTransaction},
 };
 use serde_derive::{Deserialize, Serialize};
@@ -42,7 +42,7 @@ where
 {
     type Message = MsgNewTxs;
 
-    async fn process(&self, ctx: Context, msg: Self::Message) {
+    async fn process(&self, ctx: Context, msg: Self::Message) -> TrustFeedback {
         let ctx = ctx.mark_network_origin_new_txs();
 
         let insert_stx = |stx| -> _ {
@@ -65,6 +65,9 @@ where
         {
             log::error!("[core_mempool] mempool batch insert error");
         }
+
+        // FIXME
+        TrustFeedback::Neutral
     }
 }
 
@@ -103,7 +106,7 @@ where
 {
     type Message = MsgPullTxs;
 
-    async fn process(&self, ctx: Context, msg: Self::Message) {
+    async fn process(&self, ctx: Context, msg: Self::Message) -> TrustFeedback {
         let push_txs = async move {
             let ret = self
                 .mem_pool
@@ -119,6 +122,9 @@ where
         push_txs
             .unwrap_or_else(move |err| log::warn!("[core_mempool] push txs {}", err))
             .await;
+
+        // FIXME
+        TrustFeedback::Neutral
     }
 }
 
@@ -145,7 +151,7 @@ where
 {
     type Message = MsgPullTxs;
 
-    async fn process(&self, ctx: Context, msg: Self::Message) {
+    async fn process(&self, ctx: Context, msg: Self::Message) -> TrustFeedback {
         let futs = msg
             .hashes
             .into_iter()
@@ -159,5 +165,7 @@ where
             .response(ctx, RPC_RESP_PULL_TXS_SYNC, ret, Priority::High)
             .unwrap_or_else(move |e| log::warn!("[core_mempool] push txs {}", e))
             .await;
+
+        TrustFeedback::Neutral
     }
 }
