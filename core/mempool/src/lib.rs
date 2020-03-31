@@ -108,6 +108,8 @@ where
 
         if !ctx.is_network_origin_txs() {
             self.adapter.broadcast_tx(ctx, tx).await?;
+        } else {
+            self.adapter.report_good(ctx);
         }
 
         Ok(())
@@ -157,7 +159,6 @@ where
             current_height + self.timeout_gap.load(Ordering::Relaxed),
         );
         self.callback_cache.clear();
-
         Ok(())
     }
 
@@ -219,6 +220,8 @@ where
                 self.callback_cache
                     .insert(signed_tx.tx_hash.clone(), signed_tx);
             }
+
+            self.adapter.report_good(ctx);
         }
 
         Ok(())
