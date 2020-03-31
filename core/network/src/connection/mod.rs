@@ -197,7 +197,7 @@ impl<P: NetworkProtocol> ConnectionService<P> {
             }
 
             ConnectionEvent::SendMsg { tar, msg, pri } => {
-                let proto_id = P::message_proto_id();
+                let proto_id = P::transmitter_id();
                 let tar2 = tar.clone();
                 let msg2 = msg.clone();
 
