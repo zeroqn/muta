@@ -59,7 +59,9 @@ impl TryFrom<&'static str> for Endpoint {
         }
 
         if !endpoint.starts_with(MULTI_CAST_SCHEME) && !endpoint.starts_with(RPC_SCHEME) {
-            return Err(UnsupportedScheme(endpoint));
+            Err(UnsupportedScheme(endpoint))
+        } else {
+            Ok(Endpoint(endpoint))
         }
     }
 }

@@ -94,13 +94,15 @@ impl muta_protocol::traits::Rpc for NetworkHandle {
             .await?)
     }
 
-    async fn response<M>(&self, ctx: Context, _: &str, msg: M, _: Priority) -> ProtocolResult<()>
+    async fn response<M>(&self, ctx: Context, _: &str, ret: ProtocolResult<M>, _: Priority) -> ProtocolResult<()>
     where
         M: MessageCodec,
     {
+        let ret = ret.map_err(|e| Box::new(e).into());
+
         Ok(self
             .rpc
-            .response(ctx, Ok(msg))
+            .response(ctx, ret)
             .err_into::<NetworkError>()
             .await?)
     }

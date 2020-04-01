@@ -119,10 +119,7 @@ where
                 .context("decode broadcast message")?;
             let ctx = Context::new().set_remote_peer(stream.conn().remote_peer());
 
-            if let Err(err) = msg_handler.process(ctx, msg).await {
-                error!("process {} {}", proto, err);
-            }
-
+            msg_handler.process(ctx, msg).await;
             Ok::<(), Error>(())
         };
 
