@@ -1,6 +1,11 @@
 use crate::{error::NetworkError, peer_store::PeerStore, protocols::BootstrapService};
 
-use futures::channel::mpsc;
+use anyhow::Error;
+use futures::{
+    channel::mpsc,
+    future::{BoxFuture, FutureExt},
+    stream::{FuturesUnordered, StreamExt},
+};
 use muta_protocol::traits::Context;
 use tokio::sync::Mutex;
 use wormhole::{bootstrap, crypto::PeerId, host::Host, multiaddr::Multiaddr};
@@ -47,7 +52,7 @@ impl<H: Host + Clone + 'static> P2p<H> {
     /// Bootstrap will try to connect to at least one of given peers.
     pub async fn bootstrap(
         &mut self,
-        ctx: Context,
+        _ctx: Context,
         bootstrap_peers: Vec<PeerId>,
     ) -> Result<(), NetworkError> {
         let host = self.host.clone();
@@ -68,16 +73,28 @@ impl<H: Host + Clone + 'static> P2p<H> {
     }
 
     pub(crate) fn dial(&self, ctx: Context, peers: Vec<PeerId>) -> Dial {
-        todo!()
+        let fut = FuturesUnordered::new();
+        for pid in peers {
+            let network = self.host.network();
+            let ctx = ctx.clone();
+            fut.push(async move {
+                network
+                    .dial_peer(ctx, &pid)
+                    .map(|ret| ret.map(|_| ()))
+                    .await
+            });
+        }
+
+        Dial(fut.collect::<Vec<Result<(), Error>>>().boxed())
     }
 }
 
-pub(crate) struct Dial {}
+pub(crate) struct Dial(BoxFuture<'static, Vec<Result<(), Error>>>);
 
 impl Future for Dial {
-    type Output = ();
+    type Output = Vec<Result<(), Error>>;
 
-    fn poll(self: Pin<&mut Self>, cx: &mut TaskContext<'_>) -> Poll<Self::Output> {
-        todo!()
+    fn poll(mut self: Pin<&mut Self>, cx: &mut TaskContext<'_>) -> Poll<Self::Output> {
+        Future::poll(Pin::new(&mut self.as_mut().0), cx)
     }
 }

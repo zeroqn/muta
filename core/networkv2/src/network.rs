@@ -12,14 +12,14 @@ use futures::{
     future::{BoxFuture, FutureExt, TryFutureExt},
     pin_mut, ready,
 };
-use log::{debug, error};
+use log::error;
 use muta_protocol::{
     traits::{Context, MessageCodec, MessageHandler, Priority},
     types::Address,
     ProtocolResult,
 };
 use wormhole::{
-    crypto::{PeerId, PrivateKey, PublicKey},
+    crypto::{PrivateKey, PublicKey},
     host::QuicHost,
     multiaddr::Multiaddr,
 };
@@ -185,7 +185,7 @@ impl Network {
     /// Bootstrap will try to connect to at least one bootstrap peer
     pub async fn bootstrap(
         &mut self,
-        ctx: Context,
+        _ctx: Context,
         bootstrap_peers: Vec<(PublicKey, Multiaddr)>,
     ) -> ProtocolResult<()> {
         let peer_ids = bootstrap_peers
