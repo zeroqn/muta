@@ -12,12 +12,6 @@ use wormhole::{
     network::ProtocolId,
 };
 
-use std::{
-    future::Future,
-    pin::Pin,
-    task::{Context as TaskContext, Poll},
-};
-
 #[derive(Clone)]
 pub struct BootstrapService<H: Host + 'static> {
     host:       H,
@@ -37,7 +31,7 @@ impl<H: Host + Clone + 'static> BootstrapService<H> {
         let proto_id = next_protocol_id().into();
         println!("proto_id {}", proto_id);
 
-        let proto = BootstrapProtocol::new(proto_id, mode, peer_store.inner(), new_arrived_tx);
+        let proto = BootstrapProtocol::new(proto_id, mode, peer_store, new_arrived_tx);
 
         BootstrapService {
             host,
@@ -49,9 +43,7 @@ impl<H: Host + Clone + 'static> BootstrapService<H> {
 
     pub async fn register_then_spawn(&self) -> Result<(), Error> {
         let proto = self.proto.clone();
-        println!("xxx");
         self.host.add_handler(Box::new(proto)).await?;
-        println!("yyyy");
 
         for peer in self.boot_peers.clone().into_iter() {
             let host = self.host.clone();
@@ -75,7 +67,6 @@ impl<H: Host + Clone + 'static> BootstrapService<H> {
             tokio::spawn(async move {
                 do_boot
                     .unwrap_or_else(|err| {
-                        println!("{}", err);
                         error!("boot peer {} {}", peer, err);
                     })
                     .await;

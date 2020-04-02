@@ -1,20 +1,20 @@
-// mod bootstrap;
+mod bootstrap;
 mod broadcast;
-mod discovery;
 // mod rpc;
 
-// pub use bootstrap::BootstrapService;
+pub use bootstrap::BootstrapService;
 pub use broadcast::BroadcastService;
-pub use discovery::Discovery;
 // pub use rpc::RpcService;
+
+use crate::peer_store::PeerStore;
 
 use anyhow::Error;
 use lazy_static::lazy_static;
 use muta_protocol::{
-    traits::{Context, MessageCodec, MessageHandler, Priority},
+    traits::{Context, MessageCodec, MessageHandler},
     types::Address,
-    ProtocolResult,
 };
+use wormhole::host::QuicHost;
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -27,7 +27,13 @@ fn next_protocol_id() -> u64 {
 }
 
 #[derive(Clone)]
-pub struct MultiCast {}
+pub struct MultiCast(BroadcastService<QuicHost>);
+
+impl MultiCast {
+    pub fn new(host: QuicHost, peer_store: PeerStore) -> Self {
+        MultiCast(BroadcastService::new(host, peer_store))
+    }
+}
 
 impl MultiCast {
     pub async fn register_endpoint(
@@ -35,7 +41,7 @@ impl MultiCast {
         endpoint: &'static str,
         handler: impl MessageHandler,
     ) -> Result<(), Error> {
-        todo!()
+        self.0.register_then_spawn(endpoint, handler).await
     }
 
     pub async fn broadcast<M: MessageCodec>(
@@ -44,17 +50,17 @@ impl MultiCast {
         endpoint: &str,
         msg: M,
     ) -> Result<(), Error> {
-        todo!()
+        self.0.broadcast(ctx, endpoint, msg).await
     }
 
-    pub async fn multicast_by_chain_addrs<M: MessageCodec>(
+    pub async fn multicast_by_chain_addr<M: MessageCodec>(
         &self,
         ctx: Context,
         endpoint: &str,
         chain_addrs: Vec<Address>,
         msg: M,
     ) -> Result<(), Error> {
-        todo!()
+        self.0.usercast(ctx, endpoint, chain_addrs, msg).await
     }
 }
 

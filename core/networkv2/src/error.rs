@@ -7,6 +7,9 @@ pub enum NetworkError {
 
     #[error("service {0}")]
     Service(#[from] anyhow::Error),
+
+    #[error("listen {0}")]
+    Listen(anyhow::Error),
 }
 
 impl From<NetworkError> for ProtocolError {

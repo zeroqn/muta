@@ -3,7 +3,7 @@ use crate::{
     error::NetworkError,
     p2p::P2p,
     peer_store::PeerStore,
-    protocols::{Discovery, MultiCast, Rpc},
+    protocols::{MultiCast, Rpc},
 };
 
 use anyhow::Error;
@@ -19,7 +19,8 @@ use muta_protocol::{
     ProtocolResult,
 };
 use wormhole::{
-    crypto::{PeerId, PublicKey},
+    crypto::{PeerId, PrivateKey, PublicKey},
+    host::QuicHost,
     multiaddr::Multiaddr,
 };
 
@@ -68,7 +69,7 @@ impl muta_protocol::traits::Gossip for NetworkHandle {
     {
         Ok(self
             .multicast
-            .multicast_by_chain_addrs(ctx, endpoint, chain_addrs, msg)
+            .multicast_by_chain_addr(ctx, endpoint, chain_addrs, msg)
             .err_into::<NetworkError>()
             .await?)
     }
@@ -94,7 +95,13 @@ impl muta_protocol::traits::Rpc for NetworkHandle {
             .await?)
     }
 
-    async fn response<M>(&self, ctx: Context, _: &str, ret: ProtocolResult<M>, _: Priority) -> ProtocolResult<()>
+    async fn response<M>(
+        &self,
+        ctx: Context,
+        _: &str,
+        ret: ProtocolResult<M>,
+        _: Priority,
+    ) -> ProtocolResult<()>
     where
         M: MessageCodec,
     {
@@ -126,25 +133,29 @@ enum State {
 }
 
 pub struct Network {
-    p2p:        P2p,
+    p2p:        P2p<QuicHost>,
     peer_store: PeerStore,
 
     config: Arc<NetworkConfig>,
     state:  State,
 
-    discovery: Discovery,
     multicast: MultiCast,
     rpc:       Rpc,
 }
 
 impl Network {
     pub fn new(config: NetworkConfig) -> Self {
+        let priv_key = {
+            let bytes = (0..32).map(|_| rand::random::<u8>()).collect::<Vec<_>>();
+            PrivateKey::from_slice(bytes.as_slice()).expect("random private key")
+        };
+
         let peer_store = PeerStore::default();
-        let p2p = P2p {};
+        let host = QuicHost::make(&priv_key, peer_store.clone()).expect("make quic host");
+        let p2p = P2p::new(host, peer_store.clone());
         let config = Arc::new(config);
         let state = State::NoListen;
 
-        let discovery = Discovery {};
         let multicast = MultiCast {};
         let rpc = Rpc {};
 
@@ -155,14 +166,13 @@ impl Network {
             config,
             state,
 
-            discovery,
             multicast,
             rpc,
         }
     }
 
     pub async fn listen(&mut self, multiaddr: Multiaddr) -> ProtocolResult<()> {
-        Ok(self.p2p.listen().await?)
+        Ok(self.p2p.listen(multiaddr).await?)
     }
 
     pub fn handle(&self) -> NetworkHandle {
@@ -178,7 +188,10 @@ impl Network {
         ctx: Context,
         bootstrap_peers: Vec<(PublicKey, Multiaddr)>,
     ) -> ProtocolResult<()> {
-        let peer_ids = bootstrap_peers.iter().map(|(pubkey, _)| pubkey.peer_id()).collect::<Vec<_>>();
+        let peer_ids = bootstrap_peers
+            .iter()
+            .map(|(pubkey, _)| pubkey.peer_id())
+            .collect::<Vec<_>>();
         self.peer_store.register(bootstrap_peers).await;
 
         Ok(self.p2p.bootstrap(Context::new(), peer_ids).await?)
@@ -212,7 +225,6 @@ impl Network {
     fn maintain(&mut self) -> FutTask<Result<(), Error>> {
         let p2p = self.p2p.clone();
         let peer_store = self.peer_store.clone();
-        let discovery = self.discovery.clone();
         let config = Arc::clone(&self.config);
 
         let fut = async move {
@@ -225,12 +237,8 @@ impl Network {
             let gap = config.max_connections - connected_count;
             let condidate_peers = peer_store.connectable(gap).await;
 
-            if condidate_peers.len() < gap {
-                tokio::spawn(discovery.pull_peers(Context::new(), 1000));
-            }
-
-            tokio::spawn(p2p.dial(Context::new(), condidate_peers)).await
-                .map_err(|e| e.into())
+            p2p.dial(Context::new(), condidate_peers).await;
+            Ok(())
         };
 
         FutTask(fut.boxed())
