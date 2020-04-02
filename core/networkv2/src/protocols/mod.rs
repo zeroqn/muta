@@ -86,9 +86,9 @@ impl Rpc {
         &self,
         ctx: Context,
         endpoint: &str,
-        mut payload: P,
+        payload: P,
     ) -> Result<R, Error> {
-        todo!()
+        self.0.call(ctx, endpoint, payload).await
     }
 
     pub async fn response<R: MessageCodec>(
@@ -96,6 +96,6 @@ impl Rpc {
         ctx: Context,
         result: Result<R, Error>,
     ) -> Result<(), Error> {
-        todo!()
+        self.0.response(ctx, result).await
     }
 }
