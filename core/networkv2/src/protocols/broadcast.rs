@@ -249,12 +249,10 @@ impl<H: Host + Clone + 'static> BroadcastService<H> {
         &self,
         ctx: Context,
         endpoint: &str,
-        user_addrs: Vec<Address>,
+        chain_addrs: Vec<Address>,
         msg: M,
     ) -> Result<(), Error> {
-        let (peers, not_found) = self.peer_store.peer_ids_by_chain_addrs(user_addrs).await;
-        println!("{:?} {:?}", peers, not_found);
-
+        let (peers, not_found) = self.peer_store.peer_ids_by_chain_addr(chain_addrs).await;
         self.multicast(ctx, endpoint, peers, msg).await?;
 
         if !not_found.is_empty() {

@@ -2,7 +2,7 @@ use crate::{
     config::NetworkConfig,
     error::NetworkError,
     p2p::P2p,
-    peer_store::{PeerInfoBuilder, PeerStore},
+    peer_store::PeerStore,
     protocols::{Discovery, MultiCast, Rpc},
 };
 
@@ -178,20 +178,9 @@ impl Network {
         ctx: Context,
         bootstrap_peers: Vec<(PublicKey, Multiaddr)>,
     ) -> ProtocolResult<()> {
-        let (peer_ids, peer_infos) = bootstrap_peers
-            .into_iter()
-            .map(|(pubkey, multiaddr)| {
-                (
-                    pubkey.peer_id(),
-                    PeerInfoBuilder::new(pubkey)
-                        .net_addrs(vec![multiaddr])
-                        .protected()
-                        .build(),
-                )
-            })
-            .unzip();
+        let peer_ids = bootstrap_peers.iter().map(|(pubkey, _)| pubkey.peer_id()).collect::<Vec<_>>();
+        self.peer_store.register(bootstrap_peers).await;
 
-        self.peer_store.register_multi_peers(peer_infos).await;
         Ok(self.p2p.bootstrap(Context::new(), peer_ids).await?)
     }
 
@@ -234,15 +223,14 @@ impl Network {
             }
 
             let gap = config.max_connections - connected_count;
-            let condidate_peers = peer_store.connectable_peers(gap).await;
+            let condidate_peers = peer_store.connectable(gap).await;
 
             if condidate_peers.len() < gap {
                 tokio::spawn(discovery.pull_peers(Context::new(), 1000));
             }
 
-            tokio::spawn(p2p.dial(Context::new(), condidate_peers));
-
-            Ok(())
+            tokio::spawn(p2p.dial(Context::new(), condidate_peers)).await
+                .map_err(|e| e.into())
         };
 
         FutTask(fut.boxed())
