@@ -114,32 +114,32 @@ impl DerefMut for RpcStream {
 
 #[derive(Clone, Display)]
 #[display(fmt = "rpc endpoint {}:{}", id, endpoint)]
-struct RpcEndpoint {
-    id:   ProtocolId,
+struct RpcProtocol {
+    id:       ProtocolId,
     endpoint: &'static str,
 
     // Sender to deliver inbound stream to registered spawned message handler
     in_stream_tx: Arc<Mutex<mpsc::Sender<FramedStream>>>,
 }
 
-impl RpcEndpoint {
+impl RpcProtocol {
     pub fn new(id: u64, endpoint: &'static str, in_stream_tx: mpsc::Sender<FramedStream>) -> Self {
-        RpcEndpoint {
-            id:           id.into(),
-            endpoint:         endpoint,
+        RpcProtocol {
+            id: id.into(),
+            endpoint,
             in_stream_tx: Arc::new(Mutex::new(in_stream_tx)),
         }
     }
 }
 
 #[async_trait]
-impl ProtocolHandler for RpcEndpoint {
+impl ProtocolHandler for RpcProtocol {
     fn proto_id(&self) -> ProtocolId {
         self.id
     }
 
     fn proto_name(&self) -> &'static str {
-        self.name
+        self.endpoint
     }
 
     async fn handle(&self, stream: FramedStream) {
@@ -149,7 +149,7 @@ impl ProtocolHandler for RpcEndpoint {
         if let Err(err) = in_stream_tx.try_send(stream) {
             if err.is_full() {
                 if let Err(err) = err_stream.response(RPC_ERROR, ErrorMessage::busy()).await {
-                    error!("fail to report busy of {} {}", self.name, err);
+                    error!("fail to report busy of {} {}", self.endpoint, err);
                     return;
                 }
             }
@@ -159,7 +159,7 @@ impl ProtocolHandler for RpcEndpoint {
                     .response(RPC_ERROR, ErrorMessage::shutdown())
                     .await
                 {
-                    error!("fail to report shutdown of {} {}", self.name, err);
+                    error!("fail to report shutdown of {} {}", self.endpoint, err);
                     return;
                 }
             }
@@ -211,10 +211,7 @@ where
             let req = M::decode(encoded_req).await.context("decode rpc request")?;
             let ctx = Context::new().set_stream(stream);
 
-            if let Err(err) = req_handler.process(ctx, req).await {
-                error!("process {} {}", proto, err)
-            }
-
+            req_handler.process(ctx, req).await;
             Ok::<(), Error>(())
         };
 

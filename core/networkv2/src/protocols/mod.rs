@@ -1,10 +1,10 @@
 mod bootstrap;
 mod broadcast;
-// mod rpc;
+mod rpc;
 
 pub use bootstrap::BootstrapService;
 pub use broadcast::BroadcastService;
-// pub use rpc::RpcService;
+pub use rpc::RpcService;
 
 use crate::peer_store::PeerStore;
 
@@ -65,7 +65,13 @@ impl MultiCast {
 }
 
 #[derive(Clone)]
-pub struct Rpc {}
+pub struct Rpc(RpcService<QuicHost>);
+
+impl Rpc {
+    pub fn new(host: QuicHost) -> Self {
+        Rpc(RpcService::new(host))
+    }
+}
 
 impl Rpc {
     pub async fn register_endpoint(
@@ -73,7 +79,7 @@ impl Rpc {
         endpoint: &'static str,
         handler: impl MessageHandler,
     ) -> Result<(), Error> {
-        todo!()
+        self.0.register_then_spawn(endpoint, handler).await
     }
 
     pub async fn call<P: MessageCodec, R: MessageCodec>(

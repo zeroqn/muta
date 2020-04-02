@@ -152,12 +152,12 @@ impl Network {
 
         let peer_store = PeerStore::default();
         let host = QuicHost::make(&priv_key, peer_store.clone()).expect("make quic host");
-        let p2p = P2p::new(host, peer_store.clone());
+        let p2p = P2p::new(host.clone(), peer_store.clone());
         let config = Arc::new(config);
         let state = State::NoListen;
 
-        let multicast = MultiCast {};
-        let rpc = Rpc {};
+        let multicast = MultiCast::new(host.clone(), peer_store.clone());
+        let rpc = Rpc::new(host);
 
         Network {
             p2p,
