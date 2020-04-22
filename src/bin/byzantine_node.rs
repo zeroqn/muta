@@ -331,15 +331,24 @@ pub async fn main() {
 
     let client_node = ClientNode::make(config_file, genesis_file).await;
 
-    let genesis_block = client_node.genesis_block().await.expect("genesis block");
-    assert_eq!(genesis_block.header.height, 0);
-    log::info!("full node connected");
-
-    log::info!("send invalid 10 transactions in 1 minute");
     let mut stx = stx_builder(client_node.chain_id.clone()).build(&client_node.priv_key);
     stx.signature = Bytes::from(vec![0]);
 
     loop {
+        'connecting: loop {
+            match client_node.genesis_block().await {
+                Ok(genesis_block) => {
+                    assert_eq!(genesis_block.header.height, 0);
+                    log::info!("full node connected");
+
+                    break 'connecting;
+                }
+                Err(e) => log::error!("genesis {}", e),
+            }
+        }
+
+        log::info!("send invalid 10 transactions in 1 minute");
+
         'mempool: for _ in 0..4u8 {
             for _ in 0..10u8 {
                 let msg_stxs = MsgNewTxs {
