@@ -127,7 +127,7 @@ pub struct DataHash {
 }
 
 impl DataHash {
-    pub fn new(data: &Bytes) -> Self {
+    pub fn hash(data: &Bytes) -> Self {
         use ophelia_hasher::Hasher;
         use ophelia_hasher_blake2b::Blake2b;
 
@@ -334,7 +334,7 @@ pub struct CachedData {
 
 impl CachedData {
     pub fn new(data: Bytes) -> Self {
-        let hash = DataHash::new(&data);
+        let hash = DataHash::hash(&data);
         CachedData { hash, data }
     }
 }
@@ -654,7 +654,7 @@ impl<S: RawSender + Unpin + 'static> Future for PullData<S> {
         }
 
         let data = Bytes::copy_from_slice(data_buf.as_slice());
-        if DataHash::new(&data) != self.data_hash {
+        if DataHash::hash(&data) != self.data_hash {
             let err = PullError::Internal(Some("corrupted data".to_owned()));
             Poll::Ready(Err(err))
         } else {
