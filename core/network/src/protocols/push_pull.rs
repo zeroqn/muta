@@ -515,7 +515,7 @@ impl MissingChunks {
     pub fn complete_range(&mut self, range: ChunkRange) {
         self.0 = self
             .iter()
-            .filter(|r| r.start < range.start && r.end > range.end)
+            .filter(|r| r.start > range.start && r.end > range.end)
             .cloned()
             .collect()
     }
