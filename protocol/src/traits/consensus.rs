@@ -152,7 +152,7 @@ pub trait CommonConsensusAdapter: Send + Sync {
         signed_voters: Vec<Bytes>,
     ) -> ProtocolResult<()>;
 
-    fn whitelist_validators(&self, validator_addrs: Vec<Address>);
+    fn allowlist_validators(&self, validator_addrs: Vec<Address>);
 }
 
 #[async_trait]

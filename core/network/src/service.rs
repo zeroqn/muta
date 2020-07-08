@@ -16,8 +16,8 @@ use futures::{
 use log::{debug, error, info};
 use protocol::{
     traits::{
-        Context, Gossip, MessageCodec, MessageHandler, PeerTrust, Priority, Rpc, TrustFeedback,
-        Whitelist,
+        Allowlist, Context, Gossip, MessageCodec, MessageHandler, PeerTrust, Priority, Rpc,
+        TrustFeedback,
     },
     types::Address,
     ProtocolResult,
@@ -130,10 +130,10 @@ impl PeerTrust for NetworkServiceHandle {
     }
 }
 
-impl Whitelist for NetworkServiceHandle {
-    fn whitelist(&self, chain_addrs: Vec<Address>) {
-        let whitelist_peers = PeerManagerEvent::WhitelistPeersByChainAddr { chain_addrs };
-        if let Err(e) = self.peer_mgr.unbounded_send(whitelist_peers) {
+impl Allowlist for NetworkServiceHandle {
+    fn allowlist(&self, chain_addrs: Vec<Address>) {
+        let allowlist_peers = PeerManagerEvent::AllowlistPeersByChainAddr { chain_addrs };
+        if let Err(e) = self.peer_mgr.unbounded_send(allowlist_peers) {
             log::error!("peer manager offline {}", e);
         }
     }

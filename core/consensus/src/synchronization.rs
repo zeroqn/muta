@@ -344,7 +344,7 @@ impl<Adapter: SynchronizationAdapter> OverlordSynchronization<Adapter> {
             .iter()
             .map(|v| v.address.clone())
             .collect::<Vec<_>>();
-        self.adapter.whitelist_validators(validator_addrs);
+        self.adapter.allowlist_validators(validator_addrs);
 
         log::info!(
             "[synchronization]: commit_block, committing block header: {}, committing proof:{:?}",

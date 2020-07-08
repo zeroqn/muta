@@ -125,9 +125,9 @@ impl SessionBook for SharedSessions {
             .unwrap_or_else(|| 0)
     }
 
-    fn whitelist(&self) -> Vec<Address> {
+    fn allowlist(&self) -> Vec<Address> {
         self.inner
-            .whitelist
+            .allowlist
             .read()
             .iter()
             .map(|p| p.owned_chain_addr())

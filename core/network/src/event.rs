@@ -170,8 +170,8 @@ pub enum PeerManagerEvent {
         feedback: TrustFeedback,
     },
 
-    #[display(fmt = "whitelist peers by chain addresses {:?}", chain_addrs)]
-    WhitelistPeersByChainAddr { chain_addrs: Vec<Address> },
+    #[display(fmt = "allowlist peers by chain addresses {:?}", chain_addrs)]
+    AllowlistPeersByChainAddr { chain_addrs: Vec<Address> },
 
     // Address
     #[display(fmt = "discover multi addrs {:?}", addrs)]

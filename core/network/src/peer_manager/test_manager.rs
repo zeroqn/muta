@@ -1,8 +1,8 @@
 use super::{
     time, ArcPeer, Connectedness, ConnectingAttempt, Inner, MisbehaviorKind, PeerManager,
     PeerManagerConfig, PeerMultiaddr, TestExpireTime, TrustMetric, TrustMetricConfig,
-    GOOD_TRUST_SCORE, MAX_CONNECTING_MARGIN, MAX_RETRY_COUNT, REPEATED_CONNECTION_TIMEOUT,
-    SHORT_ALIVE_SESSION, WHITELIST_TIMEOUT,
+    ALLOWLIST_TIMEOUT, GOOD_TRUST_SCORE, MAX_CONNECTING_MARGIN, MAX_RETRY_COUNT,
+    REPEATED_CONNECTION_TIMEOUT, SHORT_ALIVE_SESSION,
 };
 use crate::{
     common::ConnectedAddr,
@@ -139,8 +139,8 @@ fn make_manager(
         our_id: manager_id,
         pubkey: manager_pubkey,
         bootstraps,
-        whitelist_by_chain_addrs: Default::default(),
-        whitelist_peers_only: false,
+        allowlist_by_chain_addrs: Default::default(),
+        allowlist_peers_only: false,
         peer_trust_config,
         peer_fatal_ban,
         peer_soft_ban,
@@ -889,7 +889,7 @@ async fn should_not_replace_any_higher_score_peer_due_to_max_connections_on_new_
 }
 
 #[tokio::test]
-async fn should_not_replace_whitelisted_peer_even_with_better_score_due_to_max_connections_on_new_session(
+async fn should_not_replace_allowlisted_peer_even_with_better_score_due_to_max_connections_on_new_session(
 ) {
     let (mut mgr, mut conn_rx) = make_manager(0, 1);
     let remote_peers = make_sessions(&mut mgr, 1, 5000).await;
@@ -912,9 +912,9 @@ async fn should_not_replace_whitelisted_peer_even_with_better_score_due_to_max_c
     // Update alive, only old enough peer can be replaced
     target_peer.set_alive(peer_trust_config.interval().as_secs() * 20 + 20);
 
-    // Whitelist peer
+    // Allowlist peer
     let target_chain_addr = target_peer.owned_chain_addr().expect("get chain addr");
-    inner.whitelist_peers_by_chain_addr(vec![target_chain_addr]);
+    inner.allowlist_peers_by_chain_addr(vec![target_chain_addr]);
 
     let test_peer = make_peer(2077);
     inner.add_peer(test_peer.clone());
@@ -2128,7 +2128,7 @@ async fn should_always_include_our_listen_addrs_in_return_from_manager_handle_ra
 }
 
 #[tokio::test]
-async fn should_whitelist_peer_chain_addrs_on_whitelist_peers_by_chain_addrs() {
+async fn should_allowlist_peer_chain_addrs_on_allowlist_peers_by_chain_addrs() {
     let (mut mgr, _conn_rx) = make_manager(0, 20);
 
     let peers = (0..5)
@@ -2140,42 +2140,42 @@ async fn should_whitelist_peer_chain_addrs_on_whitelist_peers_by_chain_addrs() {
         .collect::<Vec<_>>();
 
     let inner = mgr.core_inner();
-    assert!(inner.whitelist().is_empty(), "should have empty whitelist");
+    assert!(inner.allowlist().is_empty(), "should have empty allowlist");
 
-    let whitelist_peers_by_chain_addrs = PeerManagerEvent::WhitelistPeersByChainAddr {
+    let allowlist_peers_by_chain_addrs = PeerManagerEvent::AllowlistPeersByChainAddr {
         chain_addrs: chain_addrs.clone(),
     };
-    mgr.poll_event(whitelist_peers_by_chain_addrs).await;
+    mgr.poll_event(allowlist_peers_by_chain_addrs).await;
 
-    let whitelist = inner.whitelist();
+    let allowlist = inner.allowlist();
     assert_eq!(
-        whitelist.len(),
+        allowlist.len(),
         chain_addrs.len(),
         "should have chain addrs"
     );
     assert!(
-        !chain_addrs.into_iter().any(|ca| !whitelist.contains(&ca)),
+        !chain_addrs.into_iter().any(|ca| !allowlist.contains(&ca)),
         "should add all chain addrs"
     );
 }
 
 #[tokio::test]
-async fn should_allow_whitelisted_peer_session_even_if_we_reach_max_connections_on_new_session() {
+async fn should_allow_allowlisted_peer_session_even_if_we_reach_max_connections_on_new_session() {
     let (mut mgr, _conn_rx) = make_manager(0, 10);
     let _remote_peers = make_sessions(&mut mgr, 10, 5000).await;
 
-    let whitelisted_peer = make_peer(2077);
+    let allowlisted_peer = make_peer(2077);
     let peer = make_peer(2019);
 
     let inner = mgr.core_inner();
-    inner.whitelist_peers_by_chain_addr(vec![whitelisted_peer
+    inner.allowlist_peers_by_chain_addr(vec![allowlisted_peer
         .owned_chain_addr()
         .expect("chain addr")]);
 
-    assert_eq!(inner.whitelist().len(), 1, "should have one whitelisted");
+    assert_eq!(inner.allowlist().len(), 1, "should have one allowlisted");
     assert_eq!(inner.connected(), 10, "should have 10 connections");
 
-    // First no whitelisted one
+    // First no allowlisted one
     let sess_ctx = SessionContext::make(
         SessionId::new(233),
         peer.multiaddrs.all_raw().pop().expect("peer multiaddr"),
@@ -2191,20 +2191,20 @@ async fn should_allow_whitelisted_peer_session_even_if_we_reach_max_connections_
 
     assert_eq!(inner.connected(), 10, "should remain 10 connections");
 
-    // Now whitelistd one
+    // Now allowlistd one
     let sess_ctx = SessionContext::make(
         SessionId::new(666),
-        whitelisted_peer
+        allowlisted_peer
             .multiaddrs
             .all_raw()
             .pop()
             .expect("peer multiaddr"),
         SessionType::Inbound,
-        whitelisted_peer.owned_pubkey().expect("whitelist pubkey"),
+        allowlisted_peer.owned_pubkey().expect("allowlist pubkey"),
     );
     let new_session = PeerManagerEvent::NewSession {
-        pid:    whitelisted_peer.owned_id(),
-        pubkey: whitelisted_peer.owned_pubkey().expect("whitelist pubkey"),
+        pid:    allowlisted_peer.owned_id(),
+        pubkey: allowlisted_peer.owned_pubkey().expect("allowlist pubkey"),
         ctx:    sess_ctx.arced(),
     };
     mgr.poll_event(new_session).await;
@@ -2212,72 +2212,72 @@ async fn should_allow_whitelisted_peer_session_even_if_we_reach_max_connections_
     assert_eq!(inner.connected(), 11, "should remain 11 connections");
     let session = inner.session(666.into()).expect("should have session");
     assert_eq!(
-        session.peer.id, whitelisted_peer.id,
-        "should be whitelisted peer"
+        session.peer.id, allowlisted_peer.id,
+        "should be allowlisted peer"
     );
 }
 
 #[tokio::test]
-async fn should_refresh_whitelist_on_whitelist_peers_by_chain_addrs() {
+async fn should_refresh_allowlist_on_allowlist_peers_by_chain_addrs() {
     let (mut mgr, _conn_rx) = make_manager(0, 10);
     let peer = make_peer(2077);
 
     let inner = mgr.core_inner();
-    inner.whitelist_peers_by_chain_addr(vec![peer.owned_chain_addr().expect("chain addr")]);
-    assert_eq!(inner.whitelist().len(), 1, "should have one whitelisted");
+    inner.allowlist_peers_by_chain_addr(vec![peer.owned_chain_addr().expect("chain addr")]);
+    assert_eq!(inner.allowlist().len(), 1, "should have one allowlisted");
 
     let peer_in_list = inner
-        .whitelist()
+        .allowlist()
         .iter()
         .next()
-        .expect("should have one whitelist peer")
+        .expect("should have one allowlist peer")
         .clone();
 
     // Set expire_time_at to older timestamp
-    peer_in_list.set_expire_time_at(time::now() + WHITELIST_TIMEOUT - 20);
+    peer_in_list.set_expire_time_at(time::now() + ALLOWLIST_TIMEOUT - 20);
     assert!(!peer_in_list.is_expired(), "should not be expired");
 
-    let whitelist_peers_by_chain_addrs = PeerManagerEvent::WhitelistPeersByChainAddr {
+    let allowlist_peers_by_chain_addrs = PeerManagerEvent::AllowlistPeersByChainAddr {
         chain_addrs: vec![peer.owned_chain_addr().expect("chain addr")],
     };
-    mgr.poll_event(whitelist_peers_by_chain_addrs).await;
+    mgr.poll_event(allowlist_peers_by_chain_addrs).await;
 
     assert_eq!(
         peer_in_list.expire_time(),
-        TestExpireTime::At(time::now() + WHITELIST_TIMEOUT),
+        TestExpireTime::At(time::now() + ALLOWLIST_TIMEOUT),
         "should be refreshed"
     );
 }
 
 #[tokio::test]
-async fn should_remove_expired_peers_in_whitelist() {
+async fn should_remove_expired_peers_in_allowlist() {
     let (mut mgr, _conn_rx) = make_manager(0, 10);
     let peer = make_peer(2077);
 
     let inner = mgr.core_inner();
-    inner.whitelist_peers_by_chain_addr(vec![peer.owned_chain_addr().expect("chain addr")]);
-    assert_eq!(inner.whitelist().len(), 1, "should have one whitelisted");
+    inner.allowlist_peers_by_chain_addr(vec![peer.owned_chain_addr().expect("chain addr")]);
+    assert_eq!(inner.allowlist().len(), 1, "should have one allowlisted");
 
     let peer_in_list = inner
-        .whitelist()
+        .allowlist()
         .iter()
         .next()
-        .expect("should have one whitelist peer")
+        .expect("should have one allowlist peer")
         .clone();
     // Set expire_time_at to older timestamp
-    peer_in_list.set_expire_time_at(time::now() - WHITELIST_TIMEOUT - 1);
+    peer_in_list.set_expire_time_at(time::now() - ALLOWLIST_TIMEOUT - 1);
     assert!(peer_in_list.is_expired(), "should be expired");
 
     mgr.poll().await;
     assert_eq!(
-        inner.whitelist().len(),
+        inner.allowlist().len(),
         0,
-        "should remove expired peers in whitelist"
+        "should remove expired peers in allowlist"
     );
 }
 
 #[tokio::test]
-async fn should_never_expire_peers_from_config_whitelist() {
+async fn should_never_expire_peers_from_config_allowlist() {
     let manager_pubkey = make_pubkey();
     let manager_id = manager_pubkey.peer_id();
     let bootstraps = make_bootstraps(10);
@@ -2290,14 +2290,14 @@ async fn should_never_expire_peers_from_config_whitelist() {
     let test_peer = make_peer(2077);
     let test_chain_addr = test_peer
         .owned_chain_addr()
-        .expect("test whitelist chain addr");
+        .expect("test allowlist chain addr");
 
     let config = PeerManagerConfig {
         our_id: manager_id,
         pubkey: manager_pubkey,
         bootstraps,
-        whitelist_by_chain_addrs: vec![test_chain_addr.clone()],
-        whitelist_peers_only: false,
+        allowlist_by_chain_addrs: vec![test_chain_addr.clone()],
+        allowlist_peers_only: false,
         peer_trust_config,
         peer_fatal_ban,
         peer_soft_ban,
@@ -2312,15 +2312,15 @@ async fn should_never_expire_peers_from_config_whitelist() {
 
     let inner = manager.inner();
     assert!(
-        inner.whitelisted_by_chain_addr(&test_chain_addr),
-        "should be whitelisted"
+        inner.allowlisted_by_chain_addr(&test_chain_addr),
+        "should be allowlisted"
     );
 
     let peer_in_list = inner
-        .whitelist()
+        .allowlist()
         .iter()
         .next()
-        .expect("should have one whitelist peer")
+        .expect("should have one allowlist peer")
         .clone();
 
     assert_eq!(
@@ -2331,7 +2331,7 @@ async fn should_never_expire_peers_from_config_whitelist() {
 }
 
 #[tokio::test]
-async fn should_not_refresh_never_expired_peers_from_config_whitelist() {
+async fn should_not_refresh_never_expired_peers_from_config_allowlist() {
     let manager_pubkey = make_pubkey();
     let manager_id = manager_pubkey.peer_id();
     let bootstraps = make_bootstraps(10);
@@ -2344,14 +2344,14 @@ async fn should_not_refresh_never_expired_peers_from_config_whitelist() {
     let test_peer = make_peer(2077);
     let test_chain_addr = test_peer
         .owned_chain_addr()
-        .expect("test whitelist chain addr");
+        .expect("test allowlist chain addr");
 
     let config = PeerManagerConfig {
         our_id: manager_id,
         pubkey: manager_pubkey,
         bootstraps,
-        whitelist_by_chain_addrs: vec![test_chain_addr.clone()],
-        whitelist_peers_only: false,
+        allowlist_by_chain_addrs: vec![test_chain_addr.clone()],
+        allowlist_peers_only: false,
         peer_trust_config,
         peer_fatal_ban,
         peer_soft_ban,
@@ -2366,15 +2366,15 @@ async fn should_not_refresh_never_expired_peers_from_config_whitelist() {
 
     let inner = manager.inner();
     assert!(
-        inner.whitelisted_by_chain_addr(&test_chain_addr),
-        "should be whitelisted"
+        inner.allowlisted_by_chain_addr(&test_chain_addr),
+        "should be allowlisted"
     );
 
     let peer_in_list = inner
-        .whitelist()
+        .allowlist()
         .iter()
         .next()
-        .expect("should have one whitelist peer")
+        .expect("should have one allowlist peer")
         .clone();
 
     assert_eq!(
@@ -2395,7 +2395,7 @@ async fn should_not_refresh_never_expired_peers_from_config_whitelist() {
 }
 
 #[tokio::test]
-async fn should_only_connect_peers_in_whitelist_if_whitelist_only_enabled() {
+async fn should_only_connect_peers_in_allowlist_if_allowlist_only_enabled() {
     let manager_pubkey = make_pubkey();
     let manager_id = manager_pubkey.peer_id();
     let mut peer_dat_file = std::env::temp_dir();
@@ -2407,7 +2407,7 @@ async fn should_only_connect_peers_in_whitelist_if_whitelist_only_enabled() {
     let test_peer = make_peer(2077);
     let test_chain_addr = test_peer
         .owned_chain_addr()
-        .expect("test whitelist chain addr");
+        .expect("test allowlist chain addr");
 
     let another_peer = make_peer(2020);
 
@@ -2415,8 +2415,8 @@ async fn should_only_connect_peers_in_whitelist_if_whitelist_only_enabled() {
         our_id: manager_id,
         pubkey: manager_pubkey,
         bootstraps: Default::default(),
-        whitelist_by_chain_addrs: vec![test_chain_addr.clone()],
-        whitelist_peers_only: true,
+        allowlist_by_chain_addrs: vec![test_chain_addr.clone()],
+        allowlist_peers_only: true,
         peer_trust_config,
         peer_fatal_ban,
         peer_soft_ban,
@@ -2433,8 +2433,8 @@ async fn should_only_connect_peers_in_whitelist_if_whitelist_only_enabled() {
     inner.add_peer(test_peer.clone());
     inner.add_peer(another_peer);
     assert!(
-        inner.whitelisted_by_chain_addr(&test_chain_addr),
-        "should be whitelisted"
+        inner.allowlisted_by_chain_addr(&test_chain_addr),
+        "should be allowlisted"
     );
 
     let mut manager = MockManager::new(manager, mgr_tx);
@@ -2455,12 +2455,12 @@ async fn should_only_connect_peers_in_whitelist_if_whitelist_only_enabled() {
     let test_peer_multiaddr = test_peer.multiaddrs.all_raw().pop().expect("get multiaddr");
     assert_eq!(
         multiaddrs_in_event[0], test_peer_multiaddr,
-        "should be peer in whitelist"
+        "should be peer in allowlist"
     );
 }
 
 #[tokio::test]
-async fn should_only_allow_incoming_peers_in_whitelist_if_whitelist_only_enabled() {
+async fn should_only_allow_incoming_peers_in_allowlist_if_allowlist_only_enabled() {
     let manager_pubkey = make_pubkey();
     let manager_id = manager_pubkey.peer_id();
     let mut peer_dat_file = std::env::temp_dir();
@@ -2472,7 +2472,7 @@ async fn should_only_allow_incoming_peers_in_whitelist_if_whitelist_only_enabled
     let test_peer = make_peer(2077);
     let test_chain_addr = test_peer
         .owned_chain_addr()
-        .expect("test whitelist chain addr");
+        .expect("test allowlist chain addr");
 
     let another_peer = make_peer(2020);
 
@@ -2480,8 +2480,8 @@ async fn should_only_allow_incoming_peers_in_whitelist_if_whitelist_only_enabled
         our_id: manager_id,
         pubkey: manager_pubkey,
         bootstraps: Default::default(),
-        whitelist_by_chain_addrs: vec![test_chain_addr.clone()],
-        whitelist_peers_only: true,
+        allowlist_by_chain_addrs: vec![test_chain_addr.clone()],
+        allowlist_peers_only: true,
         peer_trust_config,
         peer_fatal_ban,
         peer_soft_ban,
@@ -2498,14 +2498,14 @@ async fn should_only_allow_incoming_peers_in_whitelist_if_whitelist_only_enabled
     inner.add_peer(test_peer.clone());
     inner.add_peer(another_peer.clone());
     assert!(
-        inner.whitelisted_by_chain_addr(&test_chain_addr),
-        "should be whitelisted"
+        inner.allowlisted_by_chain_addr(&test_chain_addr),
+        "should be allowlisted"
     );
 
     let mut manager = MockManager::new(manager, mgr_tx);
     assert_eq!(inner.connected(), 0, "should have zero connections");
 
-    // First no whitelisted one
+    // First no allowlisted one
     let sess_ctx = SessionContext::make(
         SessionId::new(233),
         another_peer
@@ -2525,7 +2525,7 @@ async fn should_only_allow_incoming_peers_in_whitelist_if_whitelist_only_enabled
 
     assert_eq!(inner.connected(), 0, "should remain 0 connections");
 
-    // Now whitelistd one
+    // Now allowlistd one
     let sess_ctx = SessionContext::make(
         SessionId::new(666),
         test_peer
@@ -2534,11 +2534,11 @@ async fn should_only_allow_incoming_peers_in_whitelist_if_whitelist_only_enabled
             .pop()
             .expect("peer multiaddr"),
         SessionType::Inbound,
-        test_peer.owned_pubkey().expect("whitelist pubkey"),
+        test_peer.owned_pubkey().expect("allowlist pubkey"),
     );
     let new_session = PeerManagerEvent::NewSession {
         pid:    test_peer.owned_id(),
-        pubkey: test_peer.owned_pubkey().expect("whitelist pubkey"),
+        pubkey: test_peer.owned_pubkey().expect("allowlist pubkey"),
         ctx:    sess_ctx.arced(),
     };
     manager.poll_event(new_session).await;
@@ -2579,14 +2579,14 @@ async fn should_disconnect_and_ban_peer_for_fatal_feedback_on_trust_metric() {
 }
 
 #[tokio::test]
-async fn should_exclude_whitelisted_peer_for_fatal_feedback_on_trust_metric() {
+async fn should_exclude_allowlisted_peer_for_fatal_feedback_on_trust_metric() {
     let (mut mgr, _conn_rx) = make_manager(0, 20);
     let remote_peers = make_sessions(&mut mgr, 1, 5000).await;
     let test_peer = remote_peers.first().expect("get first peer");
 
     let test_chain_addr = test_peer.owned_chain_addr().expect("chain addr");
     let inner = mgr.core_inner();
-    inner.whitelist_peers_by_chain_addr(vec![test_chain_addr]);
+    inner.allowlist_peers_by_chain_addr(vec![test_chain_addr]);
 
     let feedback = PeerManagerEvent::TrustMetric {
         pid:      test_peer.owned_id(),
@@ -2716,7 +2716,7 @@ async fn should_not_knock_out_peer_just_set_up_trust_metric_on_worse_feedback_on
 }
 
 #[tokio::test]
-async fn should_exclude_whitelisted_peer_if_below_fourty_score_on_worse_feedback_on_trust_metric() {
+async fn should_exclude_allowlisted_peer_if_below_fourty_score_on_worse_feedback_on_trust_metric() {
     let (mut mgr, _conn_rx) = make_manager(0, 20);
     let remote_peers = make_sessions(&mut mgr, 1, 5000).await;
     let test_peer = remote_peers.first().expect("get first peer");
@@ -2733,7 +2733,7 @@ async fn should_exclude_whitelisted_peer_if_below_fourty_score_on_worse_feedback
 
     let test_chain_addr = test_peer.owned_chain_addr().expect("chain addr");
     let inner = mgr.core_inner();
-    inner.whitelist_peers_by_chain_addr(vec![test_chain_addr]);
+    inner.allowlist_peers_by_chain_addr(vec![test_chain_addr]);
 
     let feedback = PeerManagerEvent::TrustMetric {
         pid:      test_peer.owned_id(),

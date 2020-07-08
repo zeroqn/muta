@@ -115,8 +115,8 @@ pub struct NetworkConfig {
 
     // peer manager
     pub bootstraps:             Vec<ArcPeer>,
-    pub whitelist:              Vec<Address>,
-    pub whitelist_peers_only:   bool,
+    pub allowlist:              Vec<Address>,
+    pub allowlist_peers_only:   bool,
     pub enable_save_restore:    bool,
     pub peer_dat_file:          PathBuf,
     pub peer_trust_interval:    Duration,
@@ -161,8 +161,8 @@ impl NetworkConfig {
             write_timeout:    DEFAULT_WRITE_TIMEOUT,
 
             bootstraps:             Default::default(),
-            whitelist:              Default::default(),
-            whitelist_peers_only:   false,
+            allowlist:              Default::default(),
+            allowlist_peers_only:   false,
             enable_save_restore:    false,
             peer_dat_file:          PathBuf::from(DEFAULT_PEER_DAT_FILE.to_owned()),
             peer_trust_interval:    DEFAULT_PEER_TRUST_INTERVAL_DURATION,
@@ -269,19 +269,19 @@ impl NetworkConfig {
         Ok(self)
     }
 
-    pub fn whitelist(mut self, chain_addr_strs: Vec<String>) -> ProtocolResult<Self> {
+    pub fn allowlist(mut self, chain_addr_strs: Vec<String>) -> ProtocolResult<Self> {
         let chain_addrs = chain_addr_strs
             .into_iter()
             .map(|s| Address::from_hex(&s))
             .collect::<ProtocolResult<Vec<_>>>()?;
 
-        self.whitelist = chain_addrs;
+        self.allowlist = chain_addrs;
         Ok(self)
     }
 
-    pub fn whitelist_peers_only(mut self, flag: Option<bool>) -> Self {
+    pub fn allowlist_peers_only(mut self, flag: Option<bool>) -> Self {
         if let Some(flag) = flag {
-            self.whitelist_peers_only = flag;
+            self.allowlist_peers_only = flag;
         }
         self
     }
@@ -431,8 +431,8 @@ impl From<&NetworkConfig> for PeerManagerConfig {
             our_id:                   config.secio_keypair.peer_id(),
             pubkey:                   config.secio_keypair.public_key(),
             bootstraps:               config.bootstraps.clone(),
-            whitelist_by_chain_addrs: config.whitelist.clone(),
-            whitelist_peers_only:     config.whitelist_peers_only,
+            allowlist_by_chain_addrs: config.allowlist.clone(),
+            allowlist_peers_only:     config.allowlist_peers_only,
             peer_trust_config:        Arc::new(peer_trust_config),
             peer_fatal_ban:           config.peer_fatal_ban,
             peer_soft_ban:            config.peer_soft_ban,

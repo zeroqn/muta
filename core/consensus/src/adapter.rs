@@ -15,9 +15,9 @@ use common_apm::muta_apm;
 use common_merkle::Merkle;
 
 use protocol::traits::{
-    CommonConsensusAdapter, ConsensusAdapter, Context, ExecutorFactory, ExecutorParams,
+    Allowlist, CommonConsensusAdapter, ConsensusAdapter, Context, ExecutorFactory, ExecutorParams,
     ExecutorResp, Gossip, MemPool, MessageTarget, MixedTxHashes, PeerTrust, Priority, Rpc,
-    ServiceMapping, Storage, SynchronizationAdapter, TrustFeedback, Whitelist,
+    ServiceMapping, Storage, SynchronizationAdapter, TrustFeedback,
 };
 use protocol::types::{
     Address, Block, Bytes, Hash, Hex, MerkleRoot, Metadata, Proof, Receipt, SignedTransaction,
@@ -43,7 +43,7 @@ const OVERLORD_GAP: usize = 10;
 pub struct OverlordConsensusAdapter<
     EF: ExecutorFactory<DB, S, Mapping>,
     M: MemPool,
-    N: Rpc + PeerTrust + Gossip + Whitelist + 'static,
+    N: Rpc + PeerTrust + Gossip + Allowlist + 'static,
     S: Storage,
     DB: cita_trie::DB,
     Mapping: ServiceMapping,
@@ -66,7 +66,7 @@ impl<EF, M, N, S, DB, Mapping> ConsensusAdapter
 where
     EF: ExecutorFactory<DB, S, Mapping>,
     M: MemPool + 'static,
-    N: Rpc + PeerTrust + Gossip + Whitelist + 'static,
+    N: Rpc + PeerTrust + Gossip + Allowlist + 'static,
     S: Storage + 'static,
     DB: cita_trie::DB + 'static,
     Mapping: ServiceMapping + 'static,
@@ -216,7 +216,7 @@ impl<EF, M, N, S, DB, Mapping> SynchronizationAdapter
 where
     EF: ExecutorFactory<DB, S, Mapping>,
     M: MemPool + 'static,
-    N: Rpc + PeerTrust + Gossip + Whitelist + 'static,
+    N: Rpc + PeerTrust + Gossip + Allowlist + 'static,
     S: Storage + 'static,
     DB: cita_trie::DB + 'static,
     Mapping: ServiceMapping + 'static,
@@ -350,7 +350,7 @@ impl<EF, M, N, S, DB, Mapping> CommonConsensusAdapter
 where
     EF: ExecutorFactory<DB, S, Mapping>,
     M: MemPool + 'static,
-    N: Rpc + PeerTrust + Gossip + Whitelist + 'static,
+    N: Rpc + PeerTrust + Gossip + Allowlist + 'static,
     S: Storage + 'static,
     DB: cita_trie::DB + 'static,
     Mapping: ServiceMapping + 'static,
@@ -493,8 +493,8 @@ where
         self.network.report(ctx, feedback);
     }
 
-    fn whitelist_validators(&self, validator_addrs: Vec<Address>) {
-        self.network.whitelist(validator_addrs);
+    fn allowlist_validators(&self, validator_addrs: Vec<Address>) {
+        self.network.allowlist(validator_addrs);
     }
 
     fn set_args(&self, _context: Context, timeout_gap: u64, cycles_limit: u64, max_tx_size: u64) {
@@ -803,7 +803,7 @@ impl<EF, M, N, S, DB, Mapping> OverlordConsensusAdapter<EF, M, N, S, DB, Mapping
 where
     EF: ExecutorFactory<DB, S, Mapping>,
     M: MemPool + 'static,
-    N: Rpc + PeerTrust + Gossip + Whitelist + 'static,
+    N: Rpc + PeerTrust + Gossip + Allowlist + 'static,
     S: Storage + 'static,
     DB: cita_trie::DB + 'static,
     Mapping: ServiceMapping + 'static,

@@ -21,7 +21,7 @@ pub use executor::{
 };
 pub use mempool::{MemPool, MemPoolAdapter, MixedTxHashes};
 pub use network::{
-    Gossip, MessageCodec, MessageHandler, PeerTrust, Priority, Rpc, TrustFeedback, Whitelist,
+    Allowlist, Gossip, MessageCodec, MessageHandler, PeerTrust, Priority, Rpc, TrustFeedback,
 };
 pub use storage::{
     IntoIteratorByRef, Storage, StorageAdapter, StorageBatchModify, StorageCategory,

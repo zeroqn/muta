@@ -36,10 +36,10 @@ where
         }
     }
 
-    fn report_whitelist(&self) {
+    fn report_allowlist(&self) {
         info!(
-            "whitelist peers by chain address: {:?}",
-            self.sessions.whitelist()
+            "allowlist peers by chain address: {:?}",
+            self.sessions.allowlist()
         );
     }
 
@@ -85,7 +85,7 @@ where
         }
 
         self.as_ref().report_pending_data();
-        self.as_ref().report_whitelist();
+        self.as_ref().report_allowlist();
 
         Poll::Pending
     }
