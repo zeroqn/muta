@@ -5,6 +5,7 @@ mod peer;
 mod retry;
 mod save_restore;
 mod shared;
+mod tags;
 mod time;
 mod trust_metric;
 
@@ -15,6 +16,7 @@ use addr_set::PeerAddrSet;
 use peer::Peer;
 use retry::Retry;
 use save_restore::{NoPeerDatFile, PeerDatFile, SaveRestore};
+use tags::Tags;
 
 pub use peer::{ArcPeer, Connectedness};
 pub use shared::{SharedSessions, SharedSessionsConfig};
@@ -26,7 +28,7 @@ mod test_manager;
 use std::{
     borrow::Borrow,
     cmp::PartialEq,
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     convert::{TryFrom, TryInto},
     future::Future,
     hash::{Hash, Hasher},
@@ -385,7 +387,6 @@ struct Inner {
 
     sessions: RwLock<HashSet<ArcSession>>,
     peers:    RwLock<HashSet<ArcPeer>>,
-    chain:    RwLock<HashMap<Address, ArcPeer>>,
 
     listen: RwLock<HashSet<PeerMultiaddr>>,
 }
@@ -397,7 +398,6 @@ impl Inner {
 
             sessions: Default::default(),
             peers:    Default::default(),
-            chain:    Default::default(),
 
             listen: Default::default(),
         }
@@ -464,12 +464,7 @@ impl Inner {
 
     #[allow(dead_code)]
     pub fn remove_peer(&self, peer_id: &PeerId) -> Option<ArcPeer> {
-        let opt_peer = { self.peers.write().take(peer_id) };
-        if let Some(chain_addr) = opt_peer.and_then(|p| p.owned_chain_addr()) {
-            self.chain.write().remove(&chain_addr)
-        } else {
-            None
-        }
+        self.peers.write().take(peer_id)
     }
 
     pub fn whitelist_peers_by_chain_addr(&self, chain_addrs: Vec<Address>) {
@@ -534,14 +529,7 @@ impl Inner {
     }
 
     fn restore(&self, peers: Vec<ArcPeer>) {
-        let chain_peers: Vec<_> = peers
-            .clone()
-            .into_iter()
-            .filter_map(|p| p.owned_chain_addr().map(|a| (a, p)))
-            .collect();
-
         self.peers.write().extend(peers);
-        self.chain.write().extend(chain_peers);
     }
 }
 
