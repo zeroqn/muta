@@ -518,7 +518,6 @@ mod tests {
 
     use protocol::{
         traits::{Context, Gossip, MessageCodec, Priority},
-        types::Address,
         Bytes, ProtocolResult,
     };
 
