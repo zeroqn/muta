@@ -462,8 +462,6 @@ impl<Adapter: ConsensusAdapter + 'static> Engine<FixedPill> for ConsensusEngine<
         pub_key: Bytes,
         msg: OverlordMsg<FixedPill>,
     ) -> Result<(), Box<dyn Error + Send>> {
-        let address = Address::from_pubkey_bytes(pub_key)?;
-
         match msg {
             OverlordMsg::SignedVote(sv) => {
                 let msg = sv.rlp_bytes();
@@ -472,7 +470,7 @@ impl<Adapter: ConsensusAdapter + 'static> Engine<FixedPill> for ConsensusEngine<
                         ctx,
                         msg,
                         END_GOSSIP_SIGNED_VOTE,
-                        MessageTarget::Specified(address),
+                        MessageTarget::Specified(pub_key),
                     )
                     .await?;
             }
@@ -483,7 +481,7 @@ impl<Adapter: ConsensusAdapter + 'static> Engine<FixedPill> for ConsensusEngine<
                         ctx,
                         msg,
                         END_GOSSIP_AGGREGATED_VOTE,
-                        MessageTarget::Specified(address),
+                        MessageTarget::Specified(pub_key),
                     )
                     .await?;
             }
