@@ -273,6 +273,7 @@ impl SubstreamValue {
 
                     // change client random outbound port to client listen port
                     let listen_port = get_nodes.listen_port();
+                    log::info!("remote addr listen port {:?}", listen_port);
                     debug!("listen port: {:?}", listen_port);
                     if let Some(port) = listen_port {
                         self.remote_addr.update_port(port);
@@ -280,6 +281,7 @@ impl SubstreamValue {
 
                         // add client listen address to manager
                         if let RemoteAddress::Listen(ref addr) = self.remote_addr {
+                            log::info!("addr mgr add new addr {}", addr.clone());
                             addr_mgr.add_new_addr(self.session_id, addr.clone());
                         }
                     }
@@ -293,6 +295,7 @@ impl SubstreamValue {
 
                     let announce = false;
                     let items = items.into_iter().map(|addr| vec![addr]).collect::<Vec<_>>();
+                    log::info!("items Nodes {:?}", items);
 
                     self.pending_messages
                         .push_back(DiscoveryMessage::new_nodes(announce, items));

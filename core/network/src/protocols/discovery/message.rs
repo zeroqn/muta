@@ -21,6 +21,7 @@ pub struct GetNodes {
 
 impl GetNodes {
     pub fn listen_port(&self) -> Option<u16> {
+        log::info!("do listen_port() {:?}", self.listen_port);
         match self.listen_port {
             Some(ListenPort::On(port)) if port <= u16::MAX as u32 => Some(port as u16),
             _ => None,
