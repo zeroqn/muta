@@ -278,6 +278,7 @@ impl SubstreamValue {
                     if let Some(port) = listen_port {
                         self.remote_addr.update_port(port);
                         self.addr_known.insert(self.remote_connectable_addr());
+                        println!("addr known {:?}", self.remote_connectable_addr());
 
                         // add client listen address to manager
                         if let RemoteAddress::Listen(ref addr) = self.remote_addr {
