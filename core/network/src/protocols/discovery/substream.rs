@@ -180,6 +180,11 @@ impl SubstreamValue {
         let mut pending_messages = VecDeque::default();
         debug!("direction: {:?}", direction);
         let mut addr_known = AddrKnown::new(max_known);
+        log::info!(
+            "direction: {:?} substream {:?}",
+            direction,
+            substream.listen_port
+        );
         let remote_addr = if direction.is_outbound() {
             pending_messages.push_back(DiscoveryMessage::new_get_nodes(
                 VERSION,
@@ -443,6 +448,7 @@ impl Substream {
         } else {
             None
         };
+        log::info!("new substream listen port {:?}", listen_port);
         Substream {
             remote_addr: context.session.address.clone(),
             direction: context.session.ty,

@@ -74,6 +74,7 @@ pub struct DiscoveryMessage {
 impl DiscoveryMessage {
     pub fn new_get_nodes(version: u32, count: u32, listen_port: Option<u16>) -> Self {
         let listen_port = listen_port.map(|port| ListenPort::On(port as u32));
+        log::info!("new get nodes {:?}", listen_port);
 
         DiscoveryMessage {
             payload: Some(Payload::GetNodes(GetNodes {
