@@ -1170,6 +1170,7 @@ impl PeerManager {
     }
 
     fn dicover_multi_multiaddrs(&mut self, addrs: Vec<Multiaddr>) {
+        info!("peer {:?} discovered addrs {:?}", self.peer_id, addrs);
         for addr in addrs.into_iter() {
             self.discover_multiaddr(addr);
         }
