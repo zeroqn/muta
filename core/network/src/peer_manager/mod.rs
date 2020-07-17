@@ -417,12 +417,24 @@ impl PeerManagerHandle {
             .peer(&self.inner.our_id)
             .map(|p| p.tags.contains(&PeerTag::Consensus))
             .unwrap_or_else(|| false);
+        log::info!(
+            "{:?} is self consensus {}",
+            self.inner.our_id,
+            is_self_consensus
+        );
 
         let is_remote_consensus = self
             .inner
             .session(sid)
             .map(|s| s.peer.tags.contains(&PeerTag::Consensus))
             .unwrap_or_else(|| false);
+
+        log::info!(
+            "{:?} is remote consensus {:?} {}",
+            self.inner.our_id,
+            self.inner.session(sid).map(|s| s.peer.owned_id()),
+            is_remote_consensus
+        );
 
         let condidates = peers
             .into_iter()

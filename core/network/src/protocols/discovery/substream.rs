@@ -269,6 +269,7 @@ impl SubstreamValue {
                     // must get the item first, otherwise it is possible to load
                     // the address of peer listen.
                     let mut items = addr_mgr.get_random(2500, self.session_id);
+                    log::info!("items {:?} to {:?}", items, self.remote_addr);
 
                     // change client random outbound port to client listen port
                     let listen_port = get_nodes.listen_port();
