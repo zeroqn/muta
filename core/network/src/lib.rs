@@ -19,6 +19,11 @@ mod service;
 mod test;
 mod traits;
 
+mod commonv2;
+mod eventv2;
+mod p2p;
+mod traitsv2;
+
 pub use config::NetworkConfig;
 pub use error::NetworkError;
 pub use message::{serde, serde_multi};
