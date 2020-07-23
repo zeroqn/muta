@@ -103,7 +103,6 @@ impl From<DnsAddr> for Multiaddr {
     }
 }
 
-#[derive(Debug)]
 pub struct NetworkConfig {
     // connection
     pub default_listen:   Multiaddr,
