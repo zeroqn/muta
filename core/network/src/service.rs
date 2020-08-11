@@ -28,7 +28,7 @@ use crate::outbound::{NetworkGossip, NetworkRpc};
 use crate::peer_manager::diagnostic::{Diagnostic, DiagnosticHookFn};
 use crate::peer_manager::{PeerManager, PeerManagerConfig, PeerManagerHandle, SharedSessions};
 use crate::protocols::{CoreProtocol, ReceivedMessage};
-use crate::reactor::{MessageRouter, Reactor};
+use crate::reactor::MessageRouter;
 use crate::rpc_map::RpcMap;
 use crate::selfcheck::SelfCheck;
 use crate::traits::NetworkContext;
@@ -165,6 +165,7 @@ pub struct NetworkService {
     // Public service components
     gossip:  NetworkGossip<Snappy>,
     rpc:     NetworkRpc<Snappy>,
+    #[allow(dead_code)]
     rpc_map: Arc<RpcMap>,
 
     // Core service
@@ -241,11 +242,11 @@ impl NetworkService {
         let rpc_map_clone = Arc::clone(&rpc_map);
         let rpc = NetworkRpc::new(transmitter, Snappy, rpc_map_clone, (&config).into());
         let router = MessageRouter::new(
+            Arc::clone(&rpc_map),
             recv_data_rx,
             mgr_tx.clone(),
             Snappy,
             session_book.clone(),
-            sys_tx,
         );
 
         // Build metrics service
@@ -286,14 +287,12 @@ impl NetworkService {
     pub fn register_endpoint_handler<M>(
         &mut self,
         end: &str,
-        handler: Box<dyn MessageHandler<Message = M>>,
+        handler: impl MessageHandler<Message = M>,
     ) -> ProtocolResult<()>
     where
         M: MessageCodec,
     {
         let endpoint = end.parse::<Endpoint>()?;
-        let (msg_tx, msg_rx) = unbounded();
-
         if endpoint.scheme() == EndpointScheme::RpcResponse {
             let err = "use register_rpc_response() instead".to_owned();
 
@@ -301,10 +300,7 @@ impl NetworkService {
         }
 
         if let Some(router) = &mut self.router {
-            router.register_reactor(endpoint, msg_tx);
-
-            let reactor = Reactor::new(msg_rx, handler, Arc::clone(&self.rpc_map));
-            tokio::spawn(reactor);
+            router.register_reactor(endpoint, handler);
         }
 
         Ok(())
@@ -317,17 +313,12 @@ impl NetworkService {
         M: MessageCodec,
     {
         let endpoint = end.parse::<Endpoint>()?;
-        let (msg_tx, msg_rx) = unbounded();
-
         if endpoint.scheme() != EndpointScheme::RpcResponse {
             return Err(NetworkError::UnexpectedScheme(end.to_owned()).into());
         }
 
         if let Some(router) = &mut self.router {
-            router.register_reactor(endpoint, msg_tx);
-
-            let reactor = Reactor::<M>::rpc_resp(msg_rx, Arc::clone(&self.rpc_map));
-            tokio::spawn(reactor);
+            router.register_rpc_response(endpoint);
         }
 
         Ok(())

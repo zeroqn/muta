@@ -107,7 +107,7 @@ pub async fn connect(full_node_port: u16, listen_port: u16, sync: Sync) -> Clien
     network
         .register_endpoint_handler(
             RPC_SYNC_PULL_BLOCK,
-            Box::new(DummyPullBlockRpcHandler(handle.clone())),
+            DummyPullBlockRpcHandler(handle.clone()),
         )
         .expect("register consensus rpc pull block");
     network
@@ -115,10 +115,7 @@ pub async fn connect(full_node_port: u16, listen_port: u16, sync: Sync) -> Clien
         .expect("register consensus rpc response pull block");
 
     network
-        .register_endpoint_handler(
-            BROADCAST_HEIGHT,
-            Box::new(ReceiveRemoteHeight(sync.clone())),
-        )
+        .register_endpoint_handler(BROADCAST_HEIGHT, ReceiveRemoteHeight(sync.clone()))
         .expect("register remote height");
 
     let hook_fn = |sync: Sync| -> _ {
