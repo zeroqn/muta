@@ -4,12 +4,14 @@ use futures::channel::mpsc::UnboundedSender;
 use tentacle::service::{ProtocolMeta, TargetProtocol};
 use tentacle::ProtocolId;
 
+use crate::compression::Snappy;
 use crate::event::PeerManagerEvent;
 use crate::peer_manager::PeerManagerHandle;
 use crate::protocols::discovery::Discovery;
 use crate::protocols::identify::Identify;
 use crate::protocols::ping::Ping;
-use crate::protocols::transmitter::{ReceivedMessage, Transmitter};
+use crate::protocols::transmitter::Transmitter;
+use crate::reactor::MessageRouter;
 use crate::traits::NetworkProtocol;
 
 pub const PING_PROTOCOL_ID: usize = 1;
@@ -100,8 +102,8 @@ impl CoreProtocolBuilder {
         self
     }
 
-    pub fn transmitter(mut self, data_tx: UnboundedSender<ReceivedMessage>) -> Self {
-        let transmitter = Transmitter::new(data_tx);
+    pub fn transmitter(mut self, message_router: MessageRouter<Snappy>) -> Self {
+        let transmitter = Transmitter::new(message_router);
 
         self.transmitter = Some(transmitter);
         self

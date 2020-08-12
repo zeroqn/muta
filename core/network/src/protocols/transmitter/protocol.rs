@@ -1,24 +1,26 @@
 use std::time::Instant;
 
-use futures::channel::mpsc::UnboundedSender;
 use protocol::Bytes;
 use tentacle::context::ProtocolContextMutRef;
 use tentacle::traits::SessionProtocol;
+
+use crate::compression::Snappy;
+use crate::reactor::{MessageRouter, RemotePeer};
 
 use super::message::{ReceivedMessage, SeqChunkMessage};
 use super::{DATA_SEQ_TIMEOUT, MAX_CHUNK_SIZE};
 
 pub struct TransmitterProtocol {
-    data_tx:            UnboundedSender<ReceivedMessage>,
+    router:             MessageRouter<Snappy>,
     data_buf:           Vec<u8>,
     current_data_seq:   u64,
     first_seq_bytes_at: Instant,
 }
 
 impl TransmitterProtocol {
-    pub fn new(data_tx: UnboundedSender<ReceivedMessage>) -> Self {
+    pub fn new(router: MessageRouter<Snappy>) -> Self {
         TransmitterProtocol {
-            data_tx,
+            router,
             data_buf: Vec::new(),
             current_data_seq: 0,
             first_seq_bytes_at: Instant::now(),
@@ -87,14 +89,20 @@ impl SessionProtocol for TransmitterProtocol {
         let data = std::mem::replace(&mut self.data_buf, Vec::new());
         log::debug!("final seq {} data size {}", seq, data.len());
 
+        let remote_peer = match RemotePeer::from_proto_context(&ctx) {
+            Ok(peer) => peer,
+            Err(_err) => {
+                log::warn!("received data from unencrypted peer, impossible, drop it");
+                return;
+            }
+        };
+
         let recv_msg = ReceivedMessage {
             session_id,
             peer_id,
             data: Bytes::from(data),
         };
 
-        if self.data_tx.unbounded_send(recv_msg).is_err() {
-            log::error!("network: transmitter: msg receiver dropped");
-        }
+        tokio::spawn(self.router.route_message(remote_peer, recv_msg));
     }
 }
