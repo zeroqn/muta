@@ -321,6 +321,10 @@ impl Address {
         self.0.clone()
     }
 
+    pub fn as_slice(&self) -> &[u8] {
+        self.0.as_ref()
+    }
+
     pub fn from_hex(s: &str) -> ProtocolResult<Self> {
         let s = clean_0x(s)?;
         let bytes = hex::decode(s).map_err(TypesError::from)?;

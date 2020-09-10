@@ -135,11 +135,13 @@ impl<DB: TrieDB> ServiceState for GeneralServiceState<DB> {
     }
 }
 
-fn get_address_key<Key: FixedCodec>(address: &Address, key: &Key) -> ProtocolResult<Hash> {
-    let mut hash_bytes = address.as_bytes().to_vec();
-    hash_bytes.extend_from_slice(key.encode_fixed()?.as_ref());
+fn get_address_key<Key: FixedCodec>(address: &Address, key: &Key) -> ProtocolResult<[u8; 32]> {
+    use crate::binding::store::Blake3HashExt;
 
-    Ok(Hash::digest(Bytes::from(hash_bytes)))
+    let mut hasher = blake3::Hasher::new();
+    hasher.update(address.as_slice());
+    hasher.update(key.encode_fixed()?.as_ref());
+    Ok(hasher.finalize().owned())
 }
 
 #[cfg(test)]

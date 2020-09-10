@@ -298,7 +298,7 @@ where
     }
 }
 
-trait Blake3HashExt {
+pub trait Blake3HashExt {
     fn owned(&self) -> [u8; 32];
 }
 

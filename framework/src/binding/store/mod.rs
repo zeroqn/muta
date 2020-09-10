@@ -9,7 +9,7 @@ use protocol::fixed_codec::{FixedCodec, FixedCodecError};
 use protocol::{ProtocolError, ProtocolErrorKind, ProtocolResult};
 
 pub use array::DefaultStoreArray;
-pub use map::DefaultStoreMap;
+pub use map::{Blake3HashExt, DefaultStoreMap};
 pub use primitive::{DefaultStoreBool, DefaultStoreString, DefaultStoreUint64};
 
 pub struct FixedKeys<K: FixedCodec> {
