@@ -24,7 +24,7 @@ use protocol::codec::ProtocolCodecSync;
 use protocol::traits::{
     Context, Storage, StorageAdapter, StorageBatchModify, StorageCategory, StorageSchema,
 };
-use protocol::types::{Block, Hash, Proof, Receipt, SignedTransaction};
+use protocol::types::{Block, BlockHeader, Hash, Proof, Receipt, SignedTransaction};
 use protocol::Bytes;
 use protocol::{ProtocolError, ProtocolErrorKind, ProtocolResult};
 
@@ -513,6 +513,20 @@ impl<Adapter: StorageAdapter> Storage for ImplStorage<Adapter> {
         } else {
             let block = ensure_get!(self, LATEST_BLOCK_KEY.clone(), LatestBlockSchema);
             Ok(block)
+        }
+    }
+
+    async fn get_latest_block_header(&self, _ctx: Context) -> ProtocolResult<BlockHeader> {
+        let opt_header = {
+            let opt_block = self.latest_block.read().await;
+            opt_block.as_ref().map(|b| b.header.clone())
+        };
+
+        if let Some(header) = opt_header {
+            Ok(header)
+        } else {
+            let block = ensure_get!(self, LATEST_BLOCK_KEY.clone(), LatestBlockSchema);
+            Ok(block.header)
         }
     }
 

@@ -3,7 +3,7 @@ use derive_more::Display;
 
 use crate::codec::ProtocolCodec;
 use crate::traits::Context;
-use crate::types::block::{Block, Proof};
+use crate::types::block::{Block, BlockHeader, Proof};
 use crate::types::receipt::Receipt;
 use crate::types::{Hash, SignedTransaction};
 use crate::{Bytes, ProtocolResult};
@@ -84,6 +84,8 @@ pub trait Storage: Send + Sync {
     async fn get_latest_proof(&self, ctx: Context) -> ProtocolResult<Proof>;
 
     async fn get_latest_block(&self, ctx: Context) -> ProtocolResult<Block>;
+
+    async fn get_latest_block_header(&self, ctx: Context) -> ProtocolResult<BlockHeader>;
 
     async fn update_overlord_wal(&self, ctx: Context, info: Bytes) -> ProtocolResult<()>;
 
