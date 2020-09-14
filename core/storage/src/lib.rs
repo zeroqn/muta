@@ -250,6 +250,7 @@ impl_storage_schema_for!(
     SignedTransaction
 );
 impl_storage_schema_for!(BlockSchema, BlockKey, Block, Block);
+impl_storage_schema_for!(BlockHeaderSchema, BlockKey, BlockHeader, BlockHeader);
 impl_storage_schema_for!(ReceiptSchema, CommonHashKey, Receipt, Receipt);
 impl_storage_schema_for!(ReceiptBytesSchema, CommonHashKey, Bytes, Receipt);
 impl_storage_schema_for!(HashHeightSchema, Hash, u64, HashHeight);
@@ -377,6 +378,9 @@ impl<Adapter: StorageAdapter> Storage for ImplStorage<Adapter> {
             .insert::<BlockSchema>(BlockKey::new(block.header.height), block.clone())
             .await?;
         self.adapter
+            .insert::<BlockHeaderSchema>(BlockKey::new(block.header.height), block.header.clone())
+            .await?;
+        self.adapter
             .insert::<LatestBlockSchema>(LATEST_BLOCK_KEY.clone(), block.clone())
             .await?;
 
@@ -387,6 +391,16 @@ impl<Adapter: StorageAdapter> Storage for ImplStorage<Adapter> {
 
     async fn get_block(&self, _ctx: Context, height: u64) -> ProtocolResult<Option<Block>> {
         self.adapter.get::<BlockSchema>(BlockKey::new(height)).await
+    }
+
+    async fn get_block_header(
+        &self,
+        ctx: Context,
+        height: u64,
+    ) -> ProtocolResult<Option<BlockHeader>> {
+        self.adapter
+            .get::<BlockHeaderSchema>(BlockKey::new(height))
+            .await
     }
 
     #[muta_apm::derive::tracing_span(kind = "storage")]

@@ -11,6 +11,7 @@ use crate::{Bytes, ProtocolResult};
 #[derive(Debug, Copy, Clone, Display)]
 pub enum StorageCategory {
     Block,
+    BlockHeader,
     Receipt,
     SignedTransaction,
     Wal,
@@ -58,6 +59,12 @@ pub trait Storage: Send + Sync {
     async fn insert_block(&self, ctx: Context, block: Block) -> ProtocolResult<()>;
 
     async fn get_block(&self, ctx: Context, height: u64) -> ProtocolResult<Option<Block>>;
+
+    async fn get_block_header(
+        &self,
+        ctx: Context,
+        height: u64,
+    ) -> ProtocolResult<Option<BlockHeader>>;
 
     async fn insert_receipts(
         &self,
