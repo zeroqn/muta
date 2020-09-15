@@ -187,7 +187,7 @@ pub trait ConsensusAdapter: CommonConsensusAdapter + Send + Sync {
     async fn get_full_txs(
         &self,
         ctx: Context,
-        order_txs: &Vec<Hash>,
+        order_txs: &[Hash],
     ) -> ProtocolResult<Vec<SignedTransaction>>;
 
     /// Consensus transmit a message to the given target.
@@ -234,5 +234,5 @@ pub trait ConsensusAdapter: CommonConsensusAdapter + Send + Sync {
     /// Load latest overlord wal info.
     async fn load_overlord_wal(&self, ctx: Context) -> ProtocolResult<Bytes>;
 
-    async fn verify_txs(&self, ctx: Context, height: u64, txs: &Vec<Hash>) -> ProtocolResult<()>;
+    async fn verify_txs(&self, ctx: Context, height: u64, txs: &[Hash]) -> ProtocolResult<()>;
 }
