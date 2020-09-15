@@ -17,7 +17,8 @@ use framework::binding::sdk::{DefaultChainQuerier, DefaultServiceSDK};
 use framework::binding::state::{GeneralServiceState, MPTTrie};
 use protocol::traits::{Context, Storage};
 use protocol::types::{
-    Address, Block, Hash, Proof, Receipt, ServiceContext, ServiceContextParams, SignedTransaction,
+    Address, Block, BlockHeader, Hash, Proof, Receipt, ServiceContext, ServiceContextParams,
+    SignedTransaction,
 };
 use protocol::{types::Bytes, ProtocolResult};
 
@@ -70,7 +71,19 @@ impl Storage for MockStorage {
         unimplemented!()
     }
 
+    async fn get_latest_block_header(&self, _ctx: Context) -> ProtocolResult<BlockHeader> {
+        unimplemented!()
+    }
+
     async fn get_block(&self, _ctx: Context, _: u64) -> ProtocolResult<Option<Block>> {
+        unimplemented!()
+    }
+
+    async fn get_block_header(
+        &self,
+        _ctx: Context,
+        _height: u64,
+    ) -> ProtocolResult<Option<BlockHeader>> {
         unimplemented!()
     }
 

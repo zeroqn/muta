@@ -11,7 +11,7 @@ use cita_trie::DB as TrieDB;
 
 use protocol::fixed_codec::FixedCodec;
 use protocol::traits::ServiceState;
-use protocol::types::{Address, Hash, MerkleRoot};
+use protocol::types::{Address, MerkleRoot};
 use protocol::ProtocolResult;
 
 pub struct GeneralServiceState<DB: TrieDB> {

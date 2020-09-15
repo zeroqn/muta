@@ -395,7 +395,7 @@ impl<Adapter: StorageAdapter> Storage for ImplStorage<Adapter> {
 
     async fn get_block_header(
         &self,
-        ctx: Context,
+        _ctx: Context,
         height: u64,
     ) -> ProtocolResult<Option<BlockHeader>> {
         self.adapter

@@ -19,7 +19,7 @@ use protocol::traits::{
     Context, Executor, ExecutorParams, SDKFactory, Service, ServiceMapping, ServiceSDK, Storage,
 };
 use protocol::types::{
-    Address, Block, Genesis, Hash, Proof, RawTransaction, Receipt, SignedTransaction,
+    Address, Block, BlockHeader, Genesis, Hash, Proof, RawTransaction, Receipt, SignedTransaction,
     TransactionRequest,
 };
 use protocol::ProtocolResult;
@@ -639,7 +639,19 @@ impl Storage for MockStorage {
         unimplemented!()
     }
 
+    async fn get_latest_block_header(&self, _ctx: Context) -> ProtocolResult<BlockHeader> {
+        unimplemented!()
+    }
+
     async fn get_block(&self, _ctx: Context, _: u64) -> ProtocolResult<Option<Block>> {
+        unimplemented!()
+    }
+
+    async fn get_block_header(
+        &self,
+        _ctx: Context,
+        _height: u64,
+    ) -> ProtocolResult<Option<BlockHeader>> {
         unimplemented!()
     }
 

@@ -9,7 +9,7 @@ use protocol::traits::{
     ServiceResponse, ServiceSDK, Storage,
 };
 use protocol::types::{
-    Address, Block, Genesis, Hash, Proof, RawTransaction, Receipt, ServiceContext,
+    Address, Block, BlockHeader, Genesis, Hash, Proof, RawTransaction, Receipt, ServiceContext,
     SignedTransaction, TransactionRequest,
 };
 use protocol::ProtocolResult;
@@ -137,6 +137,14 @@ impl Storage for MockStorage {
         unimplemented!()
     }
 
+    async fn get_block_header(
+        &self,
+        _ctx: Context,
+        _height: u64,
+    ) -> ProtocolResult<Option<BlockHeader>> {
+        unimplemented!()
+    }
+
     async fn insert_receipts(&self, _: Context, _: u64, _: Vec<Receipt>) -> ProtocolResult<()> {
         unimplemented!()
     }
@@ -163,6 +171,10 @@ impl Storage for MockStorage {
     }
 
     async fn get_latest_block(&self, _: Context) -> ProtocolResult<Block> {
+        unimplemented!()
+    }
+
+    async fn get_latest_block_header(&self, _ctx: Context) -> ProtocolResult<BlockHeader> {
         unimplemented!()
     }
 
