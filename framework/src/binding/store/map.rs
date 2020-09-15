@@ -8,15 +8,16 @@ use rayon::prelude::*;
 
 use protocol::fixed_codec::FixedCodec;
 use protocol::traits::{ServiceState, StoreMap};
+use protocol::types::Hash;
 use protocol::{ProtocolError, ProtocolResult};
 
 use crate::binding::store::{get_bucket_index, Bucket, FixedBuckets, StoreError};
 
 pub struct DefaultStoreMap<S: ServiceState, K: FixedCodec + PartialEq, V: FixedCodec> {
     state:    Rc<RefCell<S>>,
-    var_name: blake3::Hash,
+    var_name: String,
     keys:     RefCell<FixedBuckets<K>>,
-    len_key:  blake3::Hash,
+    len_key:  Bytes,
     len:      u64,
     phantom:  PhantomData<V>,
 }
@@ -28,15 +29,10 @@ where
     V: 'static + FixedCodec,
 {
     pub fn new(state: Rc<RefCell<S>>, name: &str) -> Self {
-        let var_name = blake3::hash(name.as_bytes());
-        let mut hasher = blake3::Hasher::new();
-        hasher.update(var_name.as_bytes());
-        hasher.update(b"_map_len");
-        let len_key = hasher.finalize();
-
+        let len_key = Bytes::from(name.to_string() + "_map_len");
         let len = state
             .borrow()
-            .get(len_key.as_bytes())
+            .get(&len_key)
             .expect("Get len failed")
             .unwrap_or(0u64);
 
@@ -44,7 +40,7 @@ where
             state,
             len_key,
             len,
-            var_name,
+            var_name: name.to_string(),
             keys: RefCell::new(FixedBuckets::new()),
             phantom: PhantomData,
         }
@@ -129,33 +125,35 @@ where
         Ok(ret)
     }
 
-    fn get_map_key<B: AsRef<[u8]>>(&self, key_bytes: B) -> [u8; 32] {
-        let mut hasher = blake3::Hasher::new();
-        hasher.update(self.var_name.as_bytes());
-        hasher.update(key_bytes.as_ref());
-        hasher.finalize().owned()
+    fn get_map_key(&self, key_bytes: &Bytes) -> Bytes {
+        let mut name_bytes = self.var_name.as_bytes().to_vec();
+        name_bytes.extend_from_slice(key_bytes);
+
+        if key_bytes.len() > 32 {
+            Hash::digest(Bytes::from(name_bytes)).as_bytes()
+        } else {
+            Bytes::from(name_bytes)
+        }
     }
 
-    fn get_bucket_name(&self, index: usize) -> [u8; 32] {
-        let mut hasher = blake3::Hasher::new();
-        hasher.update(self.var_name.as_bytes());
-        hasher.update(b"_bucket_");
-        hasher.update(&index.to_le_bytes());
-        hasher.finalize().owned()
+    fn get_bucket_name(&self, index: usize) -> Bytes {
+        let mut bytes = (self.var_name.clone() + "_bucket_").as_bytes().to_vec();
+        bytes.extend_from_slice(&index.to_le_bytes());
+        Bytes::from(bytes)
     }
 
     fn len_add_one(&mut self) -> ProtocolResult<()> {
         self.len += 1;
         self.state
             .borrow_mut()
-            .insert(self.len_key.owned(), self.len.encode_fixed()?)
+            .insert(self.len_key.clone(), self.len.encode_fixed()?)
     }
 
     fn len_sub_one(&mut self) -> ProtocolResult<()> {
         self.len -= 1;
         self.state
             .borrow_mut()
-            .insert(self.len_key.owned(), self.len.encode_fixed()?)
+            .insert(self.len_key.clone(), self.len.encode_fixed()?)
     }
 
     fn recover_all_buckets(&self) {
@@ -295,18 +293,6 @@ where
             }
         }
         None
-    }
-}
-
-trait Blake3HashExt {
-    fn owned(&self) -> [u8; 32];
-}
-
-impl Blake3HashExt for blake3::Hash {
-    fn owned(&self) -> [u8; 32] {
-        let mut buf = [0u8; 32];
-        buf.copy_from_slice(&self.as_bytes()[..32]);
-        buf
     }
 }
 
