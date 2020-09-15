@@ -136,7 +136,7 @@ impl Storage for MockStorage {
     async fn get_transaction_by_hash(
         &self,
         _ctx: Context,
-        _tx_hash: Hash,
+        _tx_hash: &Hash,
     ) -> ProtocolResult<Option<SignedTransaction>> {
         Ok(Some(mock_signed_tx()))
     }
@@ -145,7 +145,7 @@ impl Storage for MockStorage {
         &self,
         _ctx: Context,
         _height: u64,
-        _hashes: Vec<Hash>,
+        _hashes: &[Hash],
     ) -> ProtocolResult<Vec<Option<SignedTransaction>>> {
         Err(StoreError::GetNone.into())
     }

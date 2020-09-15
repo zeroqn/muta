@@ -47,13 +47,13 @@ pub trait Storage: Send + Sync {
         &self,
         ctx: Context,
         block_height: u64,
-        hashes: Vec<Hash>,
+        hashes: &[Hash],
     ) -> ProtocolResult<Vec<Option<SignedTransaction>>>;
 
     async fn get_transaction_by_hash(
         &self,
         ctx: Context,
-        hash: Hash,
+        hash: &Hash,
     ) -> ProtocolResult<Option<SignedTransaction>>;
 
     async fn insert_block(&self, ctx: Context, block: Block) -> ProtocolResult<()>;

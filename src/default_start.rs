@@ -455,7 +455,7 @@ pub async fn start<Mapping: 'static + ServiceMapping>(
             .get_transactions(
                 Context::new(),
                 block.header.height,
-                block.ordered_tx_hashes.clone(),
+                &block.ordered_tx_hashes,
             )
             .await?
             .into_iter()
