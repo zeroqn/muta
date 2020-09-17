@@ -323,7 +323,10 @@ impl IdentifyProtocol {
 
         match protocol_context.0.session.ty {
             SessionType::Inbound => {
-                log::info!("enter identify inbound procedure for {}", protocol_context.0.session.address);
+                log::info!(
+                    "enter identify inbound procedure for {}",
+                    protocol_context.0.session.address
+                );
 
                 state_context.set_timeout("wait client identity", DEFAULT_TIMEOUT);
 
@@ -333,7 +336,10 @@ impl IdentifyProtocol {
                 };
             }
             SessionType::Outbound => {
-                log::info!("enter identify outbound procedure for {}", protocol_context.0.session.address);
+                log::info!(
+                    "enter identify outbound procedure for {}",
+                    protocol_context.0.session.address
+                );
 
                 self.behaviour.send_identity(&state_context);
                 state_context.set_timeout("wait server ack", DEFAULT_TIMEOUT);
