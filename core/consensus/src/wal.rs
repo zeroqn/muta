@@ -1,3 +1,5 @@
+#![allow(clippy::unnecessary_sort_by)]
+
 use std::fs;
 use std::io::{ErrorKind, Read, Write};
 use std::path::{Path, PathBuf};
@@ -267,7 +269,7 @@ impl ConsensusWal {
             })
             .collect::<Vec<_>>();
 
-        file_names_timestamps.sort_by_key(|&b| std::cmp::Reverse(b));
+        file_names_timestamps.sort_by(|a, b| b.cmp(a));
 
         // 3rd, get a latest and valid wal if possible
         let mut index = 0;
